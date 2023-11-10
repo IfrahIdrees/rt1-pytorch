@@ -9,9 +9,6 @@ from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 import torch
-from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
-    FilmConditioning,
-)
 from torch import nn
 from torchvision.models._api import WeightsEnum
 from torchvision.models._meta import _IMAGENET_CATEGORIES
@@ -26,18 +23,22 @@ from torchvision.models.efficientnet import (
 from torchvision.ops.misc import Conv2dNormActivation
 from torchvision.utils import _log_api_usage_once
 
+from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
+    FilmConditioning,
+)
+
 
 class MBConvFilm(nn.Module):
-    """MBConv or FusedMBConv with FiLM conditioning"""
+    """MBConv or FusedMBConv with FiLM context"""
 
     def __init__(self, mbconv: MBConv):
         super().__init__()
         self.mbconv = mbconv
         self.film = FilmConditioning(mbconv.block[-1][-1].num_features)
 
-    def forward(self, x: torch.Tensor, conditioning: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         x = self.mbconv(x)
-        x = self.film(x, conditioning)
+        x = self.film(x, context)
         return x
 
 
@@ -159,14 +160,14 @@ class FilmEfficientNet(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(
-        self, x: torch.Tensor, conditioning: Optional[torch.Tensor] = None
+        self, x: torch.Tensor, context: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
-        if conditioning is None:
-            conditioning = torch.zeros(x.shape[0], 512)
+        if context is None:
+            context = torch.zeros(x.shape[0], 512)
         for feature in self.features:
             for layer in feature:
                 if isinstance(layer, MBConvFilm):
-                    x = layer(x, conditioning)
+                    x = layer(x, context)
                 else:
                     x = layer(x)
 

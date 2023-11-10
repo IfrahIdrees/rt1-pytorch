@@ -1,4 +1,5 @@
 from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
+    EMBEDDING_DIM,
     FilmConditioning,
 )
 from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder import (
@@ -9,3 +10,12 @@ from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder imp
 from robotic_transformer_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
     EfficientNetEncoder,
 )
+
+_all__ = [
+    "FilmConditioning",
+    "EMBEDDING_DIM",
+    "decode_predictions",
+    "filmefficientnet_b3",
+    "FilmEfficientNet",
+    "EfficientNetEncoder",
+]

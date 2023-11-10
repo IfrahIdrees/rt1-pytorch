@@ -3,17 +3,18 @@
 import unittest
 
 import torch
+from skimage import data
+
 from robotic_transformer_pytorch.film_efficientnet import (
     film_efficientnet_encoder,
     pretrained_efficientnet_encoder,
 )
-from skimage import data
 
 
 class PretrainedEfficientnetEncoderTest(unittest.TestCase):
     def test_encoding(self):
         """Test that we get a correctly shaped encoding."""
-        image = torch.tensor(data.chelsea())
+        image = torch.tensor(data.chelsea()).repeat(10, 1, 1, 1)
         context = torch.FloatTensor(size=(10, 512)).uniform_(-1, 1)
         model = pretrained_efficientnet_encoder.EfficientNetEncoder().eval()
         preds = model(image, context)

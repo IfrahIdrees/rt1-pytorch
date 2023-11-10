@@ -3,9 +3,10 @@
 import unittest
 
 import torch
-from robotic_transformer_pytorch.film_efficientnet import film_efficientnet_encoder
 from skimage import data
 from torchvision.models import EfficientNet_B3_Weights, efficientnet_b3
+
+from robotic_transformer_pytorch.film_efficientnet import film_efficientnet_encoder
 
 
 class FilmEfficientnetTest(unittest.TestCase):

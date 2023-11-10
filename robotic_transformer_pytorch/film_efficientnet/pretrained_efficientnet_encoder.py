@@ -3,12 +3,13 @@
 from typing import Any, Optional
 
 import torch
+from torch import nn
+from torchvision.models.efficientnet import EfficientNet_B3_Weights
+
 from robotic_transformer_pytorch.film_efficientnet import (
     film_conditioning_layer,
     film_efficientnet_encoder,
 )
-from torch import nn
-from torchvision.models.efficientnet import EfficientNet_B3_Weights
 
 _MODELS = {
     "b3": film_efficientnet_encoder.filmefficientnet_b3,
@@ -65,7 +66,8 @@ class EfficientNetEncoder(nn.Module):
         if len(image.shape) == 3:
             # Add batch dimension
             image = image.unsqueeze(0)
-        if len(image.shape) == 4 and image.shape[-1] == 3:
+        assert len(image.shape) == 4, f"Unexpected image shape: {image.shape}"
+        if image.shape[-1] == 3:
             # (B, H, W, C) -> (B, C, H, W)
             image = image.permute(0, 3, 1, 2)
         if torch.max(image) >= 1.0:
