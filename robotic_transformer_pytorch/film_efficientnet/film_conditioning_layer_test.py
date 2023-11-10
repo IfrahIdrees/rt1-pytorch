@@ -1,7 +1,6 @@
 """Tests for film_conditioning_layer."""
 import torch
 from absl.testing import absltest, parameterized
-
 from robotic_transformer_pytorch.film_efficientnet import film_conditioning_layer
 
 

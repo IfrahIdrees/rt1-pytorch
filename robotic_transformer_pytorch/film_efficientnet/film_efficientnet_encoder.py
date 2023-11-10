@@ -9,8 +9,12 @@ from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 import torch
+from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
+    FilmConditioning,
+)
 from torch import nn
 from torchvision.models._api import WeightsEnum
+from torchvision.models._meta import _IMAGENET_CATEGORIES
 from torchvision.models._utils import _ovewrite_named_param
 from torchvision.models.efficientnet import (
     EfficientNet_B3_Weights,
@@ -21,10 +25,6 @@ from torchvision.models.efficientnet import (
 )
 from torchvision.ops.misc import Conv2dNormActivation
 from torchvision.utils import _log_api_usage_once
-
-from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
-    FilmConditioning,
-)
 
 
 class MBConvFilm(nn.Module):
@@ -158,9 +158,11 @@ class FilmEfficientNet(nn.Module):
                 nn.init.uniform_(m.weight, -init_range, init_range)
                 nn.init.zeros_(m.bias)
 
-    def _forward_impl(
-        self, x: torch.Tensor, conditioning: torch.Tensor
+    def forward(
+        self, x: torch.Tensor, conditioning: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
+        if conditioning is None:
+            conditioning = torch.zeros(x.shape[0], 512)
         for feature in self.features:
             for layer in feature:
                 if isinstance(layer, MBConvFilm):
@@ -174,9 +176,6 @@ class FilmEfficientNet(nn.Module):
         x = self.classifier(x)
 
         return x
-
-    def forward(self, x: torch.Tensor, conditioning: torch.Tensor) -> torch.Tensor:
-        return self._forward_impl(x, conditioning)
 
 
 def _filmefficientnet(
@@ -272,3 +271,13 @@ def filmefficientnet_b3(
         progress,
         **kwargs,
     )
+
+
+def decode_predictions(preds: torch.Tensor, top=5):
+    preds = preds.detach().cpu().numpy()
+    results = []
+    for pred in preds:
+        top_indices = pred.argsort()[-top:][::-1]
+        result = [(_IMAGENET_CATEGORIES[i], pred[i]) for i in top_indices]
+        results.append(result)
+    return results
