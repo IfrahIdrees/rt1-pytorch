@@ -8,7 +8,7 @@ from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder imp
     filmefficientnet_b3,
 )
 from robotic_transformer_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
-    EfficientNetEncoder,
+    FilmEfficientNetEncoder,
 )
 
 _all__ = [
@@ -17,5 +17,5 @@ _all__ = [
     "decode_predictions",
     "filmefficientnet_b3",
     "FilmEfficientNet",
-    "EfficientNetEncoder",
+    "FilmEfficientNetEncoder",
 ]

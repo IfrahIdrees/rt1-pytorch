@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Callable, List, Optional, Tuple
 
 import torch
@@ -12,6 +11,8 @@ from classifier_free_guidance_pytorch import (
 from einops import pack, rearrange, reduce, repeat, unpack
 from einops.layers.torch import Rearrange, Reduce
 from torch import einsum, nn
+
+from robotic_transformer_pytorch.film_efficientnet import FilmEfficientNetEncoder
 
 # helpers
 

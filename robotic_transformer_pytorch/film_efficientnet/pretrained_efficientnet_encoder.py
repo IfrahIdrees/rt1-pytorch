@@ -7,17 +7,17 @@ from torch import nn
 from torchvision.models.efficientnet import EfficientNet_B3_Weights
 
 from robotic_transformer_pytorch.film_efficientnet import (
-    film_conditioning_layer,
-    film_efficientnet_encoder,
+    FilmConditioning,
+    filmefficientnet_b3,
 )
 
 _MODELS = {
-    "b3": film_efficientnet_encoder.filmefficientnet_b3,
+    "b3": filmefficientnet_b3,
 }
 
 
-class EfficientNetEncoder(nn.Module):
-    """Applies a pretrained Efficientnet based encoder."""
+class FilmEfficientNetEncoder(nn.Module):
+    """Applies a pretrained Efficientnet based encoder with FiLM layers."""
 
     def __init__(
         self,
@@ -38,7 +38,7 @@ class EfficientNetEncoder(nn.Module):
           pooling: If false, returns feature map before global average pooling
           **kwargs: Torch specific model kwargs.
         """
-        super(EfficientNetEncoder, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         if model_variant not in _MODELS:
             raise ValueError(f"Unknown variant {model_variant}")
         self.net = _MODELS[model_variant](
@@ -55,7 +55,7 @@ class EfficientNetEncoder(nn.Module):
             bias=False,
         )
         nn.init.kaiming_normal_(self.conv1x1.weight)
-        self.film_layer = film_conditioning_layer.FilmConditioning(num_channels=512)
+        self.film_layer = FilmConditioning(num_channels=512)
         self._pooling = pooling
 
     def forward(

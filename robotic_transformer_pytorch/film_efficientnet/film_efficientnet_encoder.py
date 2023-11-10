@@ -23,9 +23,7 @@ from torchvision.models.efficientnet import (
 from torchvision.ops.misc import Conv2dNormActivation
 from torchvision.utils import _log_api_usage_once
 
-from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
-    FilmConditioning,
-)
+from robotic_transformer_pytorch.film_efficientnet import FilmConditioning
 
 
 class MBConvFilm(nn.Module):

@@ -6,7 +6,10 @@ import torch
 from skimage import data
 from torchvision.models import EfficientNet_B3_Weights, efficientnet_b3
 
-from robotic_transformer_pytorch.film_efficientnet import film_efficientnet_encoder
+from robotic_transformer_pytorch.film_efficientnet import (
+    decode_predictions,
+    filmefficientnet_b3,
+)
 
 
 class FilmEfficientnetTest(unittest.TestCase):
@@ -18,16 +21,16 @@ class FilmEfficientnetTest(unittest.TestCase):
 
         model = efficientnet_b3(weights="DEFAULT").eval()
         model_output = model(image)
-        model_preds = film_efficientnet_encoder.decode_predictions(model_output, top=10)
+        model_preds = decode_predictions(model_output, top=10)
         print(model_preds)
         self.assertIn("tabby", [f[0] for f in model_preds[0]])
 
-        encoder = film_efficientnet_encoder.filmefficientnet_b3(
+        encoder = filmefficientnet_b3(
             weights="DEFAULT",
             include_top=True,
         ).eval()
         eff_output = encoder(image, context)
-        film_preds = film_efficientnet_encoder.decode_predictions(eff_output, top=10)
+        film_preds = decode_predictions(eff_output, top=10)
         print(film_preds)
         self.assertIn("tabby", [f[0] for f in film_preds[0]])
 
