@@ -135,13 +135,14 @@ class FilmEfficientNet(nn.Module):
         )
 
         self.features = nn.Sequential(*layers)
-        self.avgpool = nn.AdaptiveAvgPool2d(1)
         if include_top:
+            self.avgpool = nn.AdaptiveAvgPool2d(1)
             self.classifier = nn.Sequential(
                 nn.Dropout(p=dropout, inplace=True),
                 nn.Linear(lastconv_output_channels, num_classes),
             )
         else:
+            self.avgpool = nn.Identity()
             self.classifier = nn.Identity()
 
         for m in self.modules():
@@ -170,8 +171,7 @@ class FilmEfficientNet(nn.Module):
                     x = layer(x)
 
         x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-
+        x = torch.squeeze(x, dim=(2, 3))  # squeeze if h = w = 1
         x = self.classifier(x)
 
         return x

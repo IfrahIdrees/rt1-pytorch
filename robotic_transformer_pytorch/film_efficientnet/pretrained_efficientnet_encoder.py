@@ -24,7 +24,6 @@ class FilmEfficientNetEncoder(nn.Module):
         model_variant: str = "b3",
         weights: Optional[Any] = "DEFAULT",
         include_top: bool = False,
-        pooling: bool = False,
         **kwargs,
     ):
         """Initialize the model.
@@ -35,7 +34,6 @@ class FilmEfficientNetEncoder(nn.Module):
           weights: : One of "DEFAULT" or "IMAGENET1K".
           include_top: Whether to add the top fully connected layer. If True, this
             will cause encoding to fail and is used only for unit testing purposes.
-          pooling: If false, returns feature map before global average pooling
           **kwargs: Torch specific model kwargs.
         """
         super().__init__(**kwargs)
@@ -51,12 +49,11 @@ class FilmEfficientNetEncoder(nn.Module):
             out_channels=512,
             kernel_size=(1, 1),
             stride=(1, 1),
-            padding="same",
+            padding="valid",
             bias=False,
         )
         nn.init.kaiming_normal_(self.conv1x1.weight)
         self.film_layer = FilmConditioning(num_channels=512)
-        self._pooling = pooling
 
     def forward(
         self, image: torch.Tensor, context: Optional[torch.Tensor] = None
@@ -78,19 +75,8 @@ class FilmEfficientNetEncoder(nn.Module):
         image = preprocess(image)
 
         features = self.net(image, context)
-        # Add back (h,w) dimensions
-        features = features.unsqueeze(2).unsqueeze(3)
         if context is not None:
             features = self.conv1x1(features)
             features = self.film_layer(features, context)
-
-        # Global average pool.
-        if self._pooling:
-            features = nn.functional.avg_pool2d(
-                features, (features.shape[2], features.shape[3])
-            )
-
-        # Remove (h,w) dimensions
-        features = features.flatten(1)
 
         return features

@@ -18,7 +18,7 @@ class PretrainedEfficientnetEncoderTest(unittest.TestCase):
         context = torch.FloatTensor(size=(10, 512)).uniform_(-1, 1)
         model = FilmEfficientNetEncoder().eval()
         preds = model(image, context)
-        self.assertEqual(preds.shape, (10, 512))
+        self.assertEqual(preds.shape, (10, 512, 10, 10))
 
     def test_imagenet_classification(self):
         """Test that we can correctly classify an image of a cat."""
