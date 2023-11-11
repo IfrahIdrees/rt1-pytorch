@@ -1,8 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
+import numpy as np
 import torch
 from einops import pack, rearrange, reduce, repeat, unpack
 from einops.layers.torch import Rearrange
+from PIL import Image
 from torch import nn
 
 from robotic_transformer_pytorch.film_efficientnet import FilmEfficientNetEncoder
@@ -77,21 +79,27 @@ class RT1(nn.Module):
         self,
         *,
         efficientnet_variant: str = "b3",
+        encoder_dim=100,
         num_actions=11,
         action_bins=256,
-        depth=6,
-        heads=8,
-        dim_head=64,
+        num_layers=8,
+        layer_size=128,
+        num_heads=8,
+        feed_forward_size=512,
+        dropout_rate=0.1,
+        vocab_size=256,
+        token_embedding_size=512,
+        time_sequence_length=6,
+        use_token_learner=True,
         token_learner_ff_mult=2,
         token_learner_num_layers=2,
         token_learner_num_output_tokens=8,
-        cond_drop_prob=0.2,
     ):
         super().__init__()
         self.encoder = FilmEfficientNetEncoder(model_variant=efficientnet_variant)
 
         self.token_learner = TokenLearner(
-            dim=100,
+            dim=encoder_dim,
             ff_mult=token_learner_ff_mult,
             num_output_tokens=token_learner_num_output_tokens,
             num_layers=token_learner_num_layers,
@@ -99,93 +107,44 @@ class RT1(nn.Module):
 
         self.num_learned_tokens = token_learner_num_output_tokens
 
-        self.transformer_depth = depth
-
         self.transformer = nn.Transformer(
-            d_model=512,
-            nhead=heads,
+            d_model=layer_size,
+            nhead=num_heads,
             num_encoder_layers=0,
-            num_decoder_layers=depth,
-            dim_feedforward=dim_head,
-            dropout=0.0,
+            num_decoder_layers=num_layers,
+            dim_feedforward=feed_forward_size,
+            dropout=dropout_rate,
             activation="gelu",
             batch_first=True,
         )
 
-        self.cond_drop_prob = cond_drop_prob
-
         self.to_logits = nn.Sequential(
-            LayerNorm(vit.embed_dim),
-            nn.Linear(vit.embed_dim, num_actions * action_bins),
+            nn.LayerNorm(token_embedding_size),
+            nn.Linear(token_embedding_size, num_actions * action_bins),
             Rearrange("... (a b) -> ... a b", b=action_bins),
         )
 
-    def forward(self, video, texts: Optional[List[str]] = None, cond_drop_prob=0.0):
-        depth = self.transformer_depth
-        cond_drop_prob = default(cond_drop_prob, self.cond_drop_prob)
+    def forward(
+        self,
+        videos: Union[np.ndarray, List[np.ndarray]],
+        texts: Optional[List[str]] = None,
+    ):
+        if not isinstance(videos, np.ndarray):
+            videos = np.stack(videos)
 
-        frames, device = video.shape[2], video.device
+        frames = videos.shape[2]
+        videos = rearrange(videos, "b c f h w -> b f c h w")
+        images, packed_shape = pack_one(videos, "* c h w")
 
-        cond_fns = self.conditioner(
-            texts,
-            cond_drop_prob=cond_drop_prob,
-            repeat_batch=(
-                *((frames,) * self.num_vit_stages),
-                *((1,) * self.transformer_depth * 2),
-            ),
-        )
-
-        vit_cond_fns, transformer_cond_fns = (
-            cond_fns[: -(depth * 2)],
-            cond_fns[-(depth * 2) :],
-        )
-
-        video = rearrange(video, "b c f h w -> b f c h w")
-        images, packed_shape = pack_one(video, "* c h w")
-
-        tokens = self.vit(
-            images,
-            texts=texts,
-            cond_fns=vit_cond_fns,
-            cond_drop_prob=cond_drop_prob,
-            return_embeddings=True,
-        )
+        tokens = self.encoder(images, texts)
 
         tokens = unpack_one(tokens, packed_shape, "* c h w")
         learned_tokens = self.token_learner(tokens)
 
         learned_tokens = rearrange(learned_tokens, "b f c n -> b (f n) c")
 
-        # causal attention mask
-
-        attn_mask = torch.ones((frames, frames), dtype=torch.bool, device=device).triu(
-            1
-        )
-        attn_mask = repeat(
-            attn_mask,
-            "i j -> (i r1) (j r2)",
-            r1=self.num_learned_tokens,
-            r2=self.num_learned_tokens,
-        )
-
-        # sinusoidal positional embedding
-
-        pos_emb = posemb_sincos_1d(
-            frames,
-            learned_tokens.shape[-1],
-            dtype=learned_tokens.dtype,
-            device=learned_tokens.device,
-        )
-
-        learned_tokens = learned_tokens + repeat(
-            pos_emb, "n d -> (n r) d", r=self.num_learned_tokens
-        )
-
         # attention
-
-        attended_tokens = self.transformer(
-            learned_tokens, cond_fns=transformer_cond_fns, attn_mask=~attn_mask
-        )
+        attended_tokens = self.transformer(learned_tokens)
 
         pooled = reduce(attended_tokens, "b (f n) d -> b f d", "mean", f=frames)
 
