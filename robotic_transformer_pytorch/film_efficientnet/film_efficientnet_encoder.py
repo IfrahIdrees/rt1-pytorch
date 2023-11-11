@@ -140,6 +140,7 @@ class FilmEfficientNet(nn.Module):
             self.classifier = nn.Sequential(
                 nn.Dropout(p=dropout, inplace=True),
                 nn.Linear(lastconv_output_channels, num_classes),
+                nn.Softmax(dim=1),
             )
         else:
             self.avgpool = nn.Identity()

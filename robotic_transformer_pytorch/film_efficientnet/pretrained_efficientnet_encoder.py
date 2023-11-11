@@ -49,7 +49,7 @@ class FilmEfficientNetEncoder(nn.Module):
             out_channels=512,
             kernel_size=(1, 1),
             stride=(1, 1),
-            padding="valid",
+            padding="same",
             bias=False,
         )
         nn.init.kaiming_normal_(self.conv1x1.weight)

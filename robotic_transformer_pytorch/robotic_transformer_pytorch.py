@@ -5,10 +5,7 @@ from einops import pack, rearrange, reduce, repeat, unpack
 from einops.layers.torch import Rearrange
 from torch import nn
 
-from robotic_transformer_pytorch.film_efficientnet import (
-    EMBEDDING_DIM,
-    FilmEfficientNetEncoder,
-)
+from robotic_transformer_pytorch.film_efficientnet import FilmEfficientNetEncoder
 
 
 # helpers
@@ -44,8 +41,6 @@ def posemb_sincos_1d(seq, dim, temperature=10000, device=None, dtype=torch.float
 
 
 # token learner module
-
-
 class TokenLearner(nn.Module):
     """
     https://arxiv.org/abs/2106.11297
@@ -96,7 +91,7 @@ class RT1(nn.Module):
         self.encoder = FilmEfficientNetEncoder(model_variant=efficientnet_variant)
 
         self.token_learner = TokenLearner(
-            dim=EMBEDDING_DIM,
+            dim=100,
             ff_mult=token_learner_ff_mult,
             num_output_tokens=token_learner_num_output_tokens,
             num_layers=token_learner_num_layers,
@@ -107,7 +102,7 @@ class RT1(nn.Module):
         self.transformer_depth = depth
 
         self.transformer = nn.Transformer(
-            d_model=EMBEDDING_DIM,
+            d_model=512,
             nhead=heads,
             num_encoder_layers=0,
             num_decoder_layers=depth,

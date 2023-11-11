@@ -21,7 +21,7 @@ class FilmEfficientnetTest(unittest.TestCase):
 
         model = efficientnet_b3(weights="DEFAULT").eval()
         model_output = model(image)
-        model_preds = decode_predictions(model_output, top=10)
+        model_preds = decode_predictions(model_output, top=3)
         print(model_preds)
         self.assertIn("tabby", [f[0] for f in model_preds[0]])
 
@@ -30,7 +30,7 @@ class FilmEfficientnetTest(unittest.TestCase):
             include_top=True,
         ).eval()
         eff_output = encoder(image, context)
-        film_preds = decode_predictions(eff_output, top=10)
+        film_preds = decode_predictions(eff_output, top=3)
         print(film_preds)
         self.assertIn("tabby", [f[0] for f in film_preds[0]])
 
