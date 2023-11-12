@@ -1,17 +1,16 @@
 """Tests for action_tokenizer."""
 import unittest
 
-import gymnasium as gym
 import numpy as np
 from gymnasium.spaces import Box, Dict, Discrete
 
-from robotic_transformer_pytorch.tokenizers import action_tokenizer
+from robotic_transformer_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
 
 
 class ActionTokenizerTest(unittest.TestCase):
     def testTokenize_int32(self):
         action_space = Dict(terminate_episode=Discrete(2))
-        tokenizer = action_tokenizer.RT1ActionTokenizer(action_space, vocab_size=10)
+        tokenizer = RT1ActionTokenizer(action_space, vocab_size=10)
         self.assertEqual(1, tokenizer.tokens_per_action)
         action = dict(terminate_episode=np.array([1], dtype=np.int32))
         action_tokens = tokenizer.tokenize(action)
@@ -19,7 +18,7 @@ class ActionTokenizerTest(unittest.TestCase):
 
     def testTokenize_int32_out_of_bounds(self):
         action_space = Dict(terminate_episode=Discrete(2))
-        tokenizer = action_tokenizer.RT1ActionTokenizer(action_space, vocab_size=10)
+        tokenizer = RT1ActionTokenizer(action_space, vocab_size=10)
         self.assertEqual(1, tokenizer.tokens_per_action)
         action = dict(terminate_episode=np.array([3], dtype=np.int32))
         with self.assertRaises(ValueError):
@@ -27,7 +26,7 @@ class ActionTokenizerTest(unittest.TestCase):
 
     def testDetokenize_int32(self):
         action_space = Dict(terminate_episode=Discrete(2))
-        tokenizer = action_tokenizer.RT1ActionTokenizer(action_space, vocab_size=10)
+        tokenizer = RT1ActionTokenizer(action_space, vocab_size=10)
         action = tokenizer.detokenize(np.array([0], dtype=np.int32))
         self.assertEqual(action["terminate_episode"], np.array([0]))
         # OOV 3 token should become a default one hot: [1, 0]
@@ -38,7 +37,7 @@ class ActionTokenizerTest(unittest.TestCase):
         action_space = Dict(
             world_vector=Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         )
-        tokenizer = action_tokenizer.RT1ActionTokenizer(action_space, vocab_size=10)
+        tokenizer = RT1ActionTokenizer(action_space, vocab_size=10)
         self.assertEqual(3, tokenizer.tokens_per_action)
         action = dict(world_vector=[0.1, 0.5, -0.8])
         action_tokens = tokenizer.tokenize(action)
@@ -48,7 +47,7 @@ class ActionTokenizerTest(unittest.TestCase):
         action_space = Dict(
             world_vector=Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         )
-        tokenizer = action_tokenizer.RT1ActionTokenizer(action_space, vocab_size=10)
+        tokenizer = RT1ActionTokenizer(action_space, vocab_size=10)
         self.assertEqual(3, tokenizer.tokens_per_action)
         batch_size = 2
         time_dimension = 3
@@ -77,9 +76,7 @@ class ActionTokenizerTest(unittest.TestCase):
         action_space = Dict(
             world_vector=Box(low=minimum, high=maximum, shape=(2,), dtype=np.float32)
         )
-        tokenizer = action_tokenizer.RT1ActionTokenizer(
-            action_space, vocab_size=vocab_size
-        )
+        tokenizer = RT1ActionTokenizer(action_space, vocab_size=vocab_size)
         self.assertEqual(2, tokenizer.tokens_per_action)
         action = dict(world_vector=[minimum, maximum])
         action_tokens = tokenizer.tokenize(action)
@@ -92,7 +89,7 @@ class ActionTokenizerTest(unittest.TestCase):
             world_vector=Box(low=-1.0, high=1.0, shape=(2, 2), dtype=np.float32)
         )
         with self.assertRaises(ValueError):
-            action_tokenizer.RT1ActionTokenizer(action_space, vocab_size=10)
+            RT1ActionTokenizer(action_space, vocab_size=10)
 
     def testTokenizeAndDetokenizeIsEqual(self):
         action_space = Dict(
@@ -106,7 +103,7 @@ class ActionTokenizerTest(unittest.TestCase):
             terminate_episode=Discrete(2),
         )
 
-        tokenizer = action_tokenizer.RT1ActionTokenizer(
+        tokenizer = RT1ActionTokenizer(
             action_space,
             vocab_size=256,
             action_order=[

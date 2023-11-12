@@ -6,8 +6,10 @@ import torch
 from torch import nn
 from torchvision.models.efficientnet import EfficientNet_B3_Weights
 
-from robotic_transformer_pytorch.film_efficientnet import (
+from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
     FilmConditioning,
+)
+from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder import (
     filmefficientnet_b3,
 )
 
@@ -46,14 +48,14 @@ class FilmEfficientNetEncoder(nn.Module):
         self.include_top = include_top
         self.conv1x1 = nn.Conv2d(
             in_channels=1536,
-            out_channels=512,
+            out_channels=384,
             kernel_size=(1, 1),
             stride=(1, 1),
             padding="same",
             bias=False,
         )
         nn.init.kaiming_normal_(self.conv1x1.weight)
-        self.film_layer = FilmConditioning(num_channels=512)
+        self.film_layer = FilmConditioning(num_channels=384)
 
     def forward(
         self, image: torch.Tensor, context: Optional[torch.Tensor] = None

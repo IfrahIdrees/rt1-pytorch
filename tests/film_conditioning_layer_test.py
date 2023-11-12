@@ -2,7 +2,7 @@
 import torch
 from absl.testing import absltest, parameterized
 
-from robotic_transformer_pytorch.film_efficientnet import (
+from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
     EMBEDDING_DIM,
     FilmConditioning,
 )

@@ -17,7 +17,7 @@ setup(
         "attention mechanism",
         "robotics",
     ],
-    install_requires=["torch>=1.9", "scikit-image"],
+    install_requires=["torch>=1.9", "scikit-image", "sentence-transformers"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

@@ -1,0 +1,36 @@
+"""Tests for image_tokenizer."""
+import unittest
+
+import torch
+from absl.testing import parameterized
+
+from robotic_transformer_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
+
+
+class ImageTokenizerTest(parameterized.TestCase):
+    @parameterized.named_parameters(
+        ("sample_image", 384, 224, False, 8),
+        ("sample_image_token_learner", 384, 224, True, 8),
+    )
+    def testTokenize(
+        self, embedding_dim, image_resolution, use_token_learner, num_tokens
+    ):
+        batch = 2
+        tokenizer = RT1ImageTokenizer(
+            embedding_dim=embedding_dim,
+            use_token_learner=use_token_learner,
+            token_learner_num_output_tokens=num_tokens,
+        )
+
+        image = torch.randn((batch, image_resolution, image_resolution, 3))
+        image = torch.clip(image, 0.0, 1.0)
+        context_vector = torch.FloatTensor(size=(batch, 384)).uniform_()
+        image_tokens = tokenizer(image, context_vector)
+        if use_token_learner:
+            self.assertEqual(image_tokens.shape, (batch, 384, num_tokens))
+        else:
+            self.assertEqual(image_tokens.shape, (batch, 384, 100))
+
+
+if __name__ == "__main__":
+    unittest.main()

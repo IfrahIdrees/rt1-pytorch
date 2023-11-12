@@ -23,7 +23,9 @@ from torchvision.models.efficientnet import (
 from torchvision.ops.misc import Conv2dNormActivation
 from torchvision.utils import _log_api_usage_once
 
-from robotic_transformer_pytorch.film_efficientnet import FilmConditioning
+from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
+    FilmConditioning,
+)
 
 
 class MBConvFilm(nn.Module):
@@ -163,7 +165,7 @@ class FilmEfficientNet(nn.Module):
         self, x: torch.Tensor, context: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         if context is None:
-            context = torch.zeros(x.shape[0], 512)
+            context = torch.zeros(x.shape[0], 384)
         for feature in self.features:
             for layer in feature:
                 if isinstance(layer, MBConvFilm):

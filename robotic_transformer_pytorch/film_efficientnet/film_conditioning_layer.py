@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-EMBEDDING_DIM = 512
+EMBEDDING_DIM = 384
 
 
 class FilmConditioning(nn.Module):
@@ -18,7 +18,9 @@ class FilmConditioning(nn.Module):
 
     def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
-        assert context.shape[1] == 512, f"Unexpected context shape: {context.shape}"
+        assert (
+            context.shape[1] == EMBEDDING_DIM
+        ), f"Unexpected context shape: {context.shape}"
         assert (
             x.shape[0] == context.shape[0]
         ), f"x and context must have the same batch size, but got {x.shape} and {context.shape}"

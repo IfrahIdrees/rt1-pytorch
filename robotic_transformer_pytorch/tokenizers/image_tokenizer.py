@@ -5,8 +5,10 @@ from typing import Optional
 import torch
 from torch import nn
 
-from robotic_transformer_pytorch.film_efficientnet import FilmEfficientNetEncoder
-from robotic_transformer_pytorch.tokenizers import token_learner
+from robotic_transformer_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
+    FilmEfficientNetEncoder,
+)
+from robotic_transformer_pytorch.tokenizers.token_learner import TokenLearner
 
 
 class RT1ImageTokenizer(nn.Module):
@@ -14,14 +16,16 @@ class RT1ImageTokenizer(nn.Module):
 
     def __init__(
         self,
-        embedding_output_dim: int,
-        use_token_learner: bool = True,
-        num_tokens: int = 8,
+        embedding_dim: int,
+        use_token_learner=True,
+        token_learner_bottleneck_dim=64,
+        token_learner_num_output_tokens=8,
+        dropout_rate=0.1,
     ):
         """Instantiates a RT1ImageTokenizer.
 
         Args:
-          embedding_output_dim: The output size of the tokens.
+          embedding_dim: The embedding size of the tokens.
           use_token_learner: Whether to use token learner. See
             https://arxiv.org/abs/2106.11297
           num_tokens: Relevant only for token learner - the number of learned
@@ -33,10 +37,12 @@ class RT1ImageTokenizer(nn.Module):
 
         self._use_token_learner = use_token_learner
         if self._use_token_learner:
-            self._num_tokens = num_tokens
-            self._token_learner = token_learner.TokenLearnerModule(
+            self._num_tokens = token_learner_num_output_tokens
+            self._token_learner = TokenLearner(
+                embedding_dim=embedding_dim,
                 num_tokens=self._num_tokens,
-                embedding_dim=embedding_output_dim,
+                bottleneck_dim=token_learner_bottleneck_dim,
+                dropout_rate=dropout_rate,
             )
 
     @property
@@ -47,7 +53,7 @@ class RT1ImageTokenizer(nn.Module):
             num_tokens = 100
         return num_tokens
 
-    def __call__(
+    def forward(
         self,
         image: torch.Tensor,
         context: Optional[torch.Tensor] = None,
@@ -55,25 +61,22 @@ class RT1ImageTokenizer(nn.Module):
         """Gets image tokens.
 
         Args:
-          image: Images of shape (b, t, h, w, 3) to tokenize.
+          image: Images of shape (b, h, w, 3) to tokenize.
           context: An optional context vector (e.g., a natural language embedding).
-            Expected to have shape (b, t, embedding_dim).
+            Expected to have shape (b, embedding_dim).
 
         Returns:
-          tokens: has shape (batch, t, num_tokens_per_timestep, embedding_dim)
+          tokens: has shape (batch, num_tokens_per_timestep, embedding_dim)
         """
-        b, t, h, w, c = image.shape
 
-        # Fold the time axis into the batch axis.
-        image = torch.reshape(image, [b * t, h, w, c])
         if context is not None:
-            assert len(context.shape) == 3
-            context = torch.reshape(context, [b * t, -1])
+            assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
         tokens = self.get_image_embeddings(image, context)
         if self._use_token_learner:
             tokens = self._token_learner(tokens)
-        # Unflatten the time axis, which was previously flattened into the batch.
-        tokens = torch.reshape(tokens, [b, t, self.tokens_per_context_image, -1])
+        elif len(tokens.shape) == 4:
+            # (b, c, h, w) -> (b, c, h*w)
+            tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)
         return tokens
 
     def get_image_embeddings(
@@ -89,5 +92,4 @@ class RT1ImageTokenizer(nn.Module):
           tokens of shape (b, num_tokens, emedding_dim)
         """
         image_tokens = self._tokenizer(image, context=context)
-        image_tokens = torch.reshape(image_tokens, [-1, 100, 512])
         return image_tokens

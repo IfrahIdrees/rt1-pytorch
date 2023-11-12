@@ -6,7 +6,7 @@ import torch
 from skimage import data
 from torchvision.models import EfficientNet_B3_Weights, efficientnet_b3
 
-from robotic_transformer_pytorch.film_efficientnet import (
+from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder import (
     decode_predictions,
     filmefficientnet_b3,
 )
@@ -17,7 +17,7 @@ class FilmEfficientnetTest(unittest.TestCase):
         image = torch.tensor(data.chelsea()).permute(2, 0, 1).unsqueeze(0) / 255
         preprocess = EfficientNet_B3_Weights.DEFAULT.transforms(antialias=True)
         image = preprocess(image)
-        context = torch.zeros(1, 512)
+        context = torch.zeros(1, 384)
 
         model = efficientnet_b3(weights="DEFAULT").eval()
         model_output = model(image)

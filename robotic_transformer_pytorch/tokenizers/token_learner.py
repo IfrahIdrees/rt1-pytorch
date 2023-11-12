@@ -1,6 +1,4 @@
-"""TF implementation of TokenLearner(Ryoo et al 2021)."""
-
-from typing import Optional, Sequence, Union
+"""Pytorch implementation of TokenLearner(Ryoo et al 2021)."""
 
 import torch
 from torch import nn
@@ -44,7 +42,7 @@ class MlpBlock(nn.Module):
         return x
 
 
-class TokenLearnerModule(nn.Module):
+class TokenLearner(nn.Module):
     """TokenLearner module V1.1 (https://arxiv.org/abs/2106.11297)."""
 
     def __init__(
@@ -66,16 +64,17 @@ class TokenLearnerModule(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         if len(inputs.shape) == 4:
-            bs, h, w, c = inputs.shape
-            inputs = torch.reshape(inputs, [bs, h * w, c])
+            bs, c, h, w = inputs.shape
+            inputs = torch.reshape(inputs, [bs, c, h * w])
+        inputs = inputs.permute(0, 2, 1)  # Shape: [bs, h*w, c]
 
         selected = self.layernorm(inputs)
 
         selected = self.mlp(selected)  # Shape: [bs, h*w, n_token].
-
-        selected = selected.permute(0, 2, 1)  # Shape: [bs, n_token, h*w].
         selected = nn.functional.softmax(selected, dim=-1)
+        selected = selected.permute(0, 2, 1)  # Shape: [bs, n_token, h*w]
 
         feat = torch.einsum("...si,...id->...sd", selected, inputs)
+        feat = feat.permute(0, 2, 1)
 
-        return feat  # Shape: [bs, n_token, c]
+        return feat  # Shape: [bs, c, n_token]
