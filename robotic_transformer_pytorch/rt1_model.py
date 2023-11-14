@@ -73,6 +73,9 @@ class RT1Model(nn.Module):
         actions: Optional[torch.Tensor] = None,
     ):
         b, t, *_ = videos.shape
+        assert (
+            t >= self.time_sequence_length
+        ), f"Please provide at least {self.time_sequence_length} frames"
 
         # pack time dimension into batch dimension
         videos = rearrange(videos, "b t h w c -> (b t) h w c")

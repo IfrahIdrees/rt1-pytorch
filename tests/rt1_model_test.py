@@ -38,6 +38,8 @@ class RT1ModelTest(unittest.TestCase):
         logits = model(videos, texts, actions)
         self.assertEqual(logits.shape, (2, 10, 11, 256))
 
+    # TODO (Rohan138): Add more tests
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -26,6 +26,7 @@ class RT1Policy:
         use_token_learner=True,
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
+        lr=1e-4,
     ):
         self.observation_space = observation_space
         self.action_space = action_space
@@ -36,6 +37,7 @@ class RT1Policy:
             vocab_size=vocab_size,
             action_order=list(action_space.keys()),
         )
+
         self.model = RT1Model(
             tokens_per_action=self.action_tokenizer.tokens_per_action,
             action_bins=action_bins,
@@ -51,16 +53,18 @@ class RT1Policy:
             token_learner_num_output_tokens=token_learner_num_output_tokens,
         )
 
+        self.embedding_dim = embedding_dim
+
     def preprocess(
         self,
         videos: Union[np.ndarray, List[np.ndarray]],
         texts: Optional[List[str]] = None,
-        actions: Optional[np.ndarray] = None,
+        prev_actions: Optional[Dict] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not isinstance(videos, np.ndarray):
-            videos = np.array(videos)
+            videos = np.stack(videos, axis=0)
 
-        b, t, h, w, c = videos.shape
+        b, t, *_ = videos.shape
         videos = torch.tensor(videos)
 
         if texts is not None:
@@ -72,39 +76,59 @@ class RT1Policy:
             texts = texts.reshape(b, 1, self.embedding_dim)
             texts = np.repeat(texts, t, axis=1)
             texts = torch.tensor(texts)
-        if actions is not None:
-            actions = self.action_tokenizer.tokenize(actions)
-            actions = torch.tensor(actions)
-        return videos, texts, actions
+        if prev_actions is not None:
+            prev_actions = self.action_tokenizer.tokenize(prev_actions)
+            prev_actions = torch.tensor(prev_actions)
+        return videos, texts, prev_actions
 
     def forward(
         self,
         videos: torch.Tensor,
         texts: Optional[torch.Tensor] = None,
-        actions: Optional[torch.Tensor] = None,
+        prev_actions: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        action_logits = self.model(videos, texts, actions)
-        actions = torch.argmax(action_logits, dim=-1)
+        action_logits = self.model(videos, texts, prev_actions)
+        actions = torch.distributions.Categorical(logits=action_logits)
+        actions = actions.sample()
         return actions, action_logits
-
-    def act(self, obs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-        videos = obs["images"]
-        texts = obs["text"]
-        videos, texts, _ = self.preprocess(videos, texts)
-        actions, _ = self.forward(videos, texts)
-        actions = actions.detach().cpu().numpy()
-        actions = self.action_tokenizer.detokenize(actions)
-        return actions
 
     def loss(
         self,
         videos: np.ndarray,
-        texts: Optional[List[str]] = None,
-        actions: Optional[np.ndarray] = None,
-    ):
-        action_logits = self.forward(videos, texts)
-        if actions is None:
-            raise ValueError("Actions must be provided for loss_fn")
-        actions = torch.tensor(actions)
-        loss = torch.nn.functional.cross_entropy(action_logits, actions)
+        texts: List[str],
+        prev_actions: Dict,
+        target_actions: Dict,
+    ) -> torch.Tensor:
+        videos, texts, prev_actions = self.preprocess(
+            videos,
+            texts,
+            prev_actions,
+        )
+        action_logits = self.forward(videos, texts, prev_actions)
+
+        target_actions = self.action_tokenizer.tokenize(target_actions)
+        target_actions = torch.tensor(target_actions)
+
+        loss = torch.nn.functional.cross_entropy(action_logits, target_actions)
         return loss
+
+    def act(
+        self,
+        videos: np.ndarray,
+        texts: Optional[List[str]] = None,
+        prev_actions: Optional[Dict] = None,
+    ) -> Dict[str, np.ndarray]:
+        videos, texts, prev_actions = self.preprocess(videos, texts, prev_actions)
+        actions, _ = self.forward(videos, texts, prev_actions)
+        actions = actions.detach().cpu().numpy()
+        actions = self.action_tokenizer.detokenize(actions)
+        return actions
+
+    def parameters(self):
+        return self.model.parameters()
+
+    def train(self):
+        self.model.train()
+
+    def eval(self):
+        self.model.eval()
