@@ -71,25 +71,10 @@ class RT1ImageTokenizer(nn.Module):
 
         if context is not None:
             assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
-        tokens = self.get_image_embeddings(image, context)
+        tokens = self._tokenizer(image, context)
         if self._use_token_learner:
             tokens = self._token_learner(tokens)
         elif len(tokens.shape) == 4:
             # (b, c, h, w) -> (b, c, h*w)
             tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)
         return tokens
-
-    def get_image_embeddings(
-        self, image: torch.Tensor, context: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        """Gets embeddings from image.
-
-        Args:
-          image: Expected to be float32 in range [0, 1] with shape (b, h, w, 3).
-          context: Expected to be float32 with shape (b, embedding_dim)
-
-        Returns:
-          tokens of shape (b, num_tokens, emedding_dim)
-        """
-        image_tokens = self._tokenizer(image, context=context)
-        return image_tokens

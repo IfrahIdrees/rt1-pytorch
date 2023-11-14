@@ -77,8 +77,9 @@ class FilmEfficientNetEncoder(nn.Module):
         image = preprocess(image)
 
         features = self.net(image, context)
-        if context is not None:
-            features = self.conv1x1(features)
-            features = self.film_layer(features, context)
+        if context is None:
+            context = torch.zeros(features.shape[0], 384)
+        features = self.conv1x1(features)
+        features = self.film_layer(features, context)
 
         return features
