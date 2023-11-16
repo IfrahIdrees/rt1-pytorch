@@ -31,10 +31,12 @@ from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer impor
 class MBConvFilm(nn.Module):
     """MBConv or FusedMBConv with FiLM context"""
 
-    def __init__(self, mbconv: MBConv):
+    def __init__(self, embedding_dim: int, mbconv: MBConv):
         super().__init__()
         self.mbconv = mbconv
-        self.film = FilmConditioning(mbconv.block[-1][-1].num_features)
+        self.film = FilmConditioning(
+            embedding_dim=embedding_dim, num_channels=mbconv.block[-1][-1].num_features
+        )
 
     def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         x = self.mbconv(x)
@@ -52,6 +54,7 @@ class FilmEfficientNet(nn.Module):
         num_classes: int = 1000,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         last_channel: Optional[int] = None,
+        embedding_dim: Optional[int] = 512,
     ) -> None:
         """
         EfficientNet V1 and V2 main class
@@ -64,6 +67,7 @@ class FilmEfficientNet(nn.Module):
             num_classes (int): Number of classes
             norm_layer (Optional[Callable[..., nn.Module]]): Module specifying the normalization layer to use
             last_channel (int): The number of channels on the penultimate layer
+            embedding_dim (int): The dimension of the embedding space
         """
         super().__init__()
         _log_api_usage_once(self)
@@ -115,7 +119,10 @@ class FilmEfficientNet(nn.Module):
                     stochastic_depth_prob * float(stage_block_id) / total_stage_blocks
                 )
                 stage.append(
-                    MBConvFilm(block_cnf.block(block_cnf, sd_prob, norm_layer))
+                    MBConvFilm(
+                        embedding_dim=embedding_dim,
+                        mbconv=block_cnf.block(block_cnf, sd_prob, norm_layer),
+                    )
                 )
                 stage_block_id += 1
 
@@ -161,11 +168,13 @@ class FilmEfficientNet(nn.Module):
                 nn.init.uniform_(m.weight, -init_range, init_range)
                 nn.init.zeros_(m.bias)
 
+        self.embedding_dim = embedding_dim
+
     def forward(
         self, x: torch.Tensor, context: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         if context is None:
-            context = torch.zeros(x.shape[0], 384)
+            context = torch.zeros(x.shape[0], self.embedding_dim)
         for feature in self.features:
             for layer in feature:
                 if isinstance(layer, MBConvFilm):

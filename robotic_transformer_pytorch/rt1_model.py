@@ -29,7 +29,7 @@ class RT1Model(nn.Module):
         feed_forward_size=512,
         dropout_rate=0.1,
         time_sequence_length=6,
-        embedding_dim=384,
+        embedding_dim=512,
         use_token_learner=True,
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
@@ -96,7 +96,7 @@ class RT1Model(nn.Module):
             ],
             dim=-1,
         )
-        tokens = tokens[:, indices[1:], :, :]  # (b, t-6, 6, c, n)
+        tokens = tokens[:, indices, :, :]  # (b, t-5, 6, c, n)
 
         # pack time dimension into batch dimension
         tokens = rearrange(tokens, "b t f c n -> (b t) (f n) c")
@@ -117,7 +117,7 @@ class RT1Model(nn.Module):
         action_tokens = self.action_encoder(actions)
 
         # index previous action
-        action_tokens = action_tokens[:, indices[:-1], :, :]
+        action_tokens = action_tokens[:, indices, :, :]
 
         # pack time dimension into batch dimension
         action_tokens = rearrange(action_tokens, "b t f n a -> (b t) (f n) a")
@@ -156,7 +156,7 @@ class RT1Model(nn.Module):
             logits,
             "(b t) (n d) -> b t n d",
             b=b,
-            t=t - 6,
+            t=t - self.time_sequence_length + 1,
             n=self.tokens_per_action,
             d=self.action_bins,
         )
@@ -167,7 +167,7 @@ class RT1Model(nn.Module):
                 torch.zeros(
                     (
                         b,
-                        self.time_sequence_length,
+                        self.time_sequence_length - 1,
                         self.tokens_per_action,
                         self.action_bins,
                     )

@@ -33,7 +33,7 @@ class RT1ImageTokenizer(nn.Module):
         """
         super().__init__()
 
-        self._tokenizer = FilmEfficientNetEncoder()
+        self._tokenizer = FilmEfficientNetEncoder(embedding_dim=embedding_dim)
 
         self._use_token_learner = use_token_learner
         if self._use_token_learner:

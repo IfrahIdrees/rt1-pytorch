@@ -52,34 +52,7 @@ def load_dataset(name):
         version = "0.1.0"
     path = f"gs://gresearch/robotics/{name}/{version}"
     builder = tfds.builder_from_directory(path)
-    builder.download_and_prepare()
     ds = builder.as_dataset(split="train[:100]")
-
-    def map_fn(episode):
-        return {
-            "observation": {
-                "image": [
-                    step["observation"]["image"]
-                    for step in episode["steps"].as_numpy_iterator()
-                ],
-                "context": [
-                    step["observation"]["natural_language_instruction"]
-                    for step in episode["steps"].as_numpy_iterator()
-                ],
-            },
-            "action": [step["action"] for step in episode["steps"].as_numpy_iterator()],
-        }
-
-    ds = ds.map(map_fn, num_parallel_calls=-1).unbatch()
-
-    # shuffle, repeat, pre-fetch, batch
-    ds = ds.cache()  # optionally keep full dataset in memory
-    ds = ds.shuffle(100)  # set shuffle buffer size
-    ds = ds.repeat()  # repeat indefinitely
-
-    breakpoint()
-
-    return ds.as_numpy_iterator()
 
 
 def main():
@@ -115,7 +88,6 @@ def main():
             videos = batch["observation"]["image"]
             texts = batch.get("context")
             prev_actions = batch["action"]
-            breakpoint()
             loss = policy.loss(videos, texts, prev_actions, batch["action"])
             optimizer.zero_grad()
             loss.backward()

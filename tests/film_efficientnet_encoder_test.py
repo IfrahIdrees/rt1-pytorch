@@ -1,38 +1,39 @@
-"""Tests that film_efficientnet can detect an image of a cat."""
+"""Tests for pretrained_efficientnet_encoder."""
 
 import unittest
 
 import torch
 from skimage import data
-from torchvision.models import EfficientNet_B3_Weights, efficientnet_b3
 
 from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder import (
     decode_predictions,
-    filmefficientnet_b3,
+)
+from robotic_transformer_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
+    FilmEfficientNetEncoder,
 )
 
 
-class FilmEfficientnetTest(unittest.TestCase):
-    def test_equivalence_b3(self):
-        image = torch.tensor(data.chelsea()).permute(2, 0, 1).unsqueeze(0) / 255
-        preprocess = EfficientNet_B3_Weights.DEFAULT.transforms(antialias=True)
-        image = preprocess(image)
-        context = torch.zeros(1, 384)
+class PretrainedEfficientnetEncoderTest(unittest.TestCase):
+    def test_encoding(self):
+        """Test that we get a correctly shaped encoding."""
+        embedding_dim = 512
+        image = torch.tensor(data.chelsea()).repeat(10, 1, 1, 1)
+        context = torch.FloatTensor(size=(10, embedding_dim)).uniform_(-1, 1)
+        model = FilmEfficientNetEncoder(embedding_dim=embedding_dim).eval()
+        preds = model(image, context)
+        self.assertEqual(preds.shape, (10, 512, 10, 10))
 
-        model = efficientnet_b3(weights="DEFAULT").eval()
-        model_output = model(image)
-        model_preds = decode_predictions(model_output, top=3)
-        print(model_preds)
-        self.assertIn("tabby", [f[0] for f in model_preds[0]])
-
-        encoder = filmefficientnet_b3(
-            weights="DEFAULT",
+    def test_imagenet_classification(self):
+        """Test that we can correctly classify an image of a cat."""
+        embedding_dim = 512
+        image = torch.tensor(data.chelsea())
+        model = FilmEfficientNetEncoder(
             include_top=True,
+            embedding_dim=embedding_dim,
         ).eval()
-        eff_output = encoder(image, context)
-        film_preds = decode_predictions(eff_output, top=3)
-        print(film_preds)
-        self.assertIn("tabby", [f[0] for f in film_preds[0]])
+        preds = model(image)
+        predicted_names = [n[0] for n in decode_predictions(preds, top=3)[0]]
+        self.assertIn("tabby", predicted_names)
 
 
 if __name__ == "__main__":

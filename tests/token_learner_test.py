@@ -9,7 +9,7 @@ from robotic_transformer_pytorch.tokenizers.token_learner import TokenLearner
 class TokenLearnerTest(unittest.TestCase):
     def testTokenLearner_h_w_split(self):
         batch = 5
-        embedding_dim = 384
+        embedding_dim = 512
         num_tokens = 8
         token_learner_layer = TokenLearner(
             embedding_dim=embedding_dim, num_tokens=num_tokens
@@ -22,7 +22,7 @@ class TokenLearnerTest(unittest.TestCase):
 
     def testTokenLearner_hw(self):
         batch = 5
-        embedding_dim = 384
+        embedding_dim = 512
         num_tokens = 8
         token_learner_layer = TokenLearner(
             embedding_dim=embedding_dim, num_tokens=num_tokens

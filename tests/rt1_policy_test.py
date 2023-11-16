@@ -29,7 +29,8 @@ class RT1PolicyTest(unittest.TestCase):
         image = data.chelsea()
         videos = np.reshape(image, (1, 1, *image.shape)).repeat(6, axis=1)
         # videos (b, f, h, w, c) = (1, 6, 300, 451, 3)
-        context = ["Move X to Y"]
+        context = np.random.rand(1, 512).astype(np.float32)
+        # context (b, d) = (1, 512)
         preds = policy.act(videos, context)
         pred_tokens = policy.action_tokenizer.tokenize(preds)
 

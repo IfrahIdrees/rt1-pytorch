@@ -17,7 +17,7 @@ class RT1ModelTest(unittest.TestCase):
         model = RT1Model()
 
         videos = torch.rand(2, 10, 3, 224, 224)
-        texts = torch.rand(2, 10, 384)
+        texts = torch.rand(2, 10, 512)
         logits = model(videos, texts)
         self.assertEqual(logits.shape, (2, 10, 11, 256))
 
@@ -33,7 +33,7 @@ class RT1ModelTest(unittest.TestCase):
         model = RT1Model()
 
         videos = torch.rand(2, 10, 3, 224, 224)
-        texts = torch.rand(2, 10, 384)
+        texts = torch.rand(2, 10, 512)
         actions = torch.rand(2, 10, 11, 256)
         logits = model(videos, texts, actions)
         self.assertEqual(logits.shape, (2, 10, 11, 256))

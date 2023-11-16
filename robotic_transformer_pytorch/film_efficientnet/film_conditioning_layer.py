@@ -1,15 +1,14 @@
 import torch
 from torch import nn
 
-EMBEDDING_DIM = 384
-
 
 class FilmConditioning(nn.Module):
-    def __init__(self, num_channels):
+    def __init__(self, embedding_dim, num_channels):
         super().__init__()
-        self._projection_add = nn.Linear(EMBEDDING_DIM, num_channels)
-        self._projection_mult = nn.Linear(EMBEDDING_DIM, num_channels)
+        self._projection_add = nn.Linear(embedding_dim, num_channels)
+        self._projection_mult = nn.Linear(embedding_dim, num_channels)
         self.num_channels = num_channels
+        self.embedding_dim = embedding_dim
         # From the paper
         nn.init.zeros_(self._projection_add.weight)
         nn.init.zeros_(self._projection_mult.weight)
@@ -19,7 +18,7 @@ class FilmConditioning(nn.Module):
     def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
         assert (
-            context.shape[1] == EMBEDDING_DIM
+            context.shape[1] == self.embedding_dim
         ), f"Unexpected context shape: {context.shape}"
         assert (
             x.shape[0] == context.shape[0]

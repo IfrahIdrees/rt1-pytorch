@@ -9,8 +9,8 @@ from robotic_transformer_pytorch.tokenizers.image_tokenizer import RT1ImageToken
 
 class ImageTokenizerTest(parameterized.TestCase):
     @parameterized.named_parameters(
-        ("sample_image", 384, 224, False, 8),
-        ("sample_image_token_learner", 384, 224, True, 8),
+        ("sample_image", 512, 224, False, 8),
+        ("sample_image_token_learner", 512, 224, True, 8),
     )
     def testTokenize(
         self, embedding_dim, image_resolution, use_token_learner, num_tokens
@@ -24,12 +24,12 @@ class ImageTokenizerTest(parameterized.TestCase):
 
         image = torch.randn((batch, image_resolution, image_resolution, 3))
         image = torch.clip(image, 0.0, 1.0)
-        context_vector = torch.FloatTensor(size=(batch, 384)).uniform_()
+        context_vector = torch.FloatTensor(size=(batch, 512)).uniform_()
         image_tokens = tokenizer(image, context_vector)
         if use_token_learner:
-            self.assertEqual(image_tokens.shape, (batch, 384, num_tokens))
+            self.assertEqual(image_tokens.shape, (batch, 512, num_tokens))
         else:
-            self.assertEqual(image_tokens.shape, (batch, 384, 100))
+            self.assertEqual(image_tokens.shape, (batch, 512, 100))
 
 
 if __name__ == "__main__":

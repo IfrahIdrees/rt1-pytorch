@@ -26,7 +26,7 @@ class FilmEfficientNetEncoder(nn.Module):
         model_variant: str = "b3",
         weights: Optional[Any] = "DEFAULT",
         include_top: bool = False,
-        **kwargs,
+        embedding_dim: int = 512,
     ):
         """Initialize the model.
 
@@ -36,32 +36,36 @@ class FilmEfficientNetEncoder(nn.Module):
           weights: : One of "DEFAULT" or "IMAGENET1K".
           include_top: Whether to add the top fully connected layer. If True, this
             will cause encoding to fail and is used only for unit testing purposes.
-          **kwargs: Torch specific model kwargs.
+          embedding_dim: Dimension of the embedding space.
         """
-        super().__init__(**kwargs)
+        super().__init__()
         if model_variant not in _MODELS:
             raise ValueError(f"Unknown variant {model_variant}")
         self.net = _MODELS[model_variant](
             include_top=include_top,
             weights=weights,
+            embedding_dim=embedding_dim,
         )
         self.include_top = include_top
         self.conv1x1 = nn.Conv2d(
             in_channels=1536,
-            out_channels=384,
+            out_channels=embedding_dim,
             kernel_size=(1, 1),
             stride=(1, 1),
             padding="same",
             bias=False,
         )
         nn.init.kaiming_normal_(self.conv1x1.weight)
-        self.film_layer = FilmConditioning(num_channels=384)
+        self.film_layer = FilmConditioning(embedding_dim, embedding_dim)
+        self.embedding_dim = embedding_dim
 
     def forward(
         self, image: torch.Tensor, context: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         if self.include_top:
             assert context is None, "Cannot use context with include_top=True"
+        elif context is None:
+            context = torch.zeros(image.shape[0], self.embedding_dim)
         if len(image.shape) == 3:
             # Add batch dimension
             image = image.unsqueeze(0)
@@ -77,9 +81,8 @@ class FilmEfficientNetEncoder(nn.Module):
         image = preprocess(image)
 
         features = self.net(image, context)
-        if context is None:
-            context = torch.zeros(features.shape[0], 384)
-        features = self.conv1x1(features)
-        features = self.film_layer(features, context)
+        if not self.include_top:
+            features = self.conv1x1(features)
+            features = self.film_layer(features, context)
 
         return features
