@@ -25,8 +25,8 @@ setup(
         "tensorflow_datasets",
         "transformers",
         "gymnasium[mujoco]",
-        "reverb",
-        "dm_control",
+        "dm-reverb",
+        "dm-control",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
