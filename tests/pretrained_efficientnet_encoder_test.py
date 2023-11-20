@@ -5,10 +5,8 @@ import unittest
 import torch
 from skimage import data
 
-from robotic_transformer_pytorch.film_efficientnet.film_efficientnet_encoder import (
-    decode_predictions,
-)
-from robotic_transformer_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
+from rt1_pytorch.film_efficientnet.film_efficientnet_encoder import decode_predictions
+from rt1_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
     FilmEfficientNetEncoder,
 )
 

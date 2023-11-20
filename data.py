@@ -10,7 +10,7 @@ import tensorflow_datasets as tfds
 import tree
 from rlds import rlds_types, transformations
 
-tf.config.experimental.set_visible_devices([], 'GPU')
+tf.config.experimental.set_visible_devices([], "GPU")
 
 
 def dataset2path(name):

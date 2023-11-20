@@ -7,8 +7,8 @@ import tree
 from einops import rearrange
 from torch.nn import functional as F
 
-from robotic_transformer_pytorch.rt1_model import RT1Model
-from robotic_transformer_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
+from rt1_pytorch.rt1_model import RT1Model
+from rt1_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
 
 
 class RT1Policy:
@@ -26,6 +26,7 @@ class RT1Policy:
         use_token_learner=True,
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
+        device="cuda",
     ):
         """
         Initializes an instance of the class.
@@ -43,6 +44,7 @@ class RT1Policy:
             use_token_learner (bool, optional): Whether to use the token learner module. Defaults to True.
             token_learner_bottleneck_dim (int, optional): The dimensionality of the bottleneck layer in the token learner. Defaults to 64.
             token_learner_num_output_tokens (int, optional): The number of output tokens from the token learner. Defaults to 8.
+            device (str, optional): The device to use for the model. Defaults to "cuda".
 
         Returns:
             None
@@ -68,6 +70,7 @@ class RT1Policy:
             use_token_learner=use_token_learner,
             token_learner_bottleneck_dim=token_learner_bottleneck_dim,
             token_learner_num_output_tokens=token_learner_num_output_tokens,
+            device=device,
         )
 
         self.embedding_dim = embedding_dim
@@ -79,6 +82,8 @@ class RT1Policy:
             ):
                 """stupid hack: make sure time sequence length != action_space.n
                 for any of the Discrete spaces otherwise action tokenizer breaks!"""
+
+        self.device = device
 
     def preprocess(
         self,
@@ -102,18 +107,18 @@ class RT1Policy:
         """
         if not isinstance(videos, np.ndarray):
             videos = np.stack(videos, axis=0)
-        videos = torch.tensor(videos)
+        videos = torch.tensor(videos, device=self.device)
 
         if not isinstance(texts, np.ndarray):
             texts = np.stack(texts, axis=0)
-        texts = torch.tensor(texts)
+        texts = torch.tensor(texts, device=self.device)
 
         if actions is not None:
             actions = tree.map_structure(
                 lambda a: rearrange(a, "b f ... -> (b f) ..."), actions
             )
             actions = self.action_tokenizer.tokenize(actions)
-            actions = torch.tensor(actions)
+            actions = torch.tensor(actions, device=self.device)
             actions = rearrange(actions, "(b f) ... -> b f ...", b=videos.shape[0])
 
         return videos, texts, actions

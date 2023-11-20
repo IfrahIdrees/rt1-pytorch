@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from robotic_transformer_pytorch.tokenizers.token_learner import TokenLearner
+from rt1_pytorch.tokenizers.token_learner import TokenLearner
 
 
 class TokenLearnerTest(unittest.TestCase):

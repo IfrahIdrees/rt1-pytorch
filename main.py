@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from torch.optim import Adam
 
 from data import create_dataset
-from robotic_transformer_pytorch.rt1_policy import RT1Policy
+from rt1_pytorch.rt1_policy import RT1Policy
 
 
 def parse_args():
@@ -20,8 +20,8 @@ def parse_args():
     parser.add_argument(
         "--split",
         type=str,
-        default="train[:100]",
-        help="train or test; default is train[:100] for the first 100 episodes",
+        default="train",
+        help="train or test; use e.g. train[:100] for the first 100 episodes",
     )
     parser.add_argument(
         "--epochs",

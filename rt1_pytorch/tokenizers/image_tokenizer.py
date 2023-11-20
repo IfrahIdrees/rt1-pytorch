@@ -5,10 +5,10 @@ from typing import Optional
 import torch
 from torch import nn
 
-from robotic_transformer_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
+from rt1_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
     FilmEfficientNetEncoder,
 )
-from robotic_transformer_pytorch.tokenizers.token_learner import TokenLearner
+from rt1_pytorch.tokenizers.token_learner import TokenLearner
 
 
 class RT1ImageTokenizer(nn.Module):
@@ -21,6 +21,7 @@ class RT1ImageTokenizer(nn.Module):
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
         dropout_rate=0.1,
+        device="cuda",
     ):
         """Instantiates a RT1ImageTokenizer.
 
@@ -30,10 +31,18 @@ class RT1ImageTokenizer(nn.Module):
             https://arxiv.org/abs/2106.11297
           num_tokens: Relevant only for token learner - the number of learned
             tokens.
+          token_learner_bottleneck_dim: Relevant only for token learner - the
+            dimension of the bottleneck layer.
+          token_learner_num_output_tokens: Relevant only for token learner -
+            the number of output tokens.
+          dropout_rate: Relevant only for token learner - the dropout rate.
+          device: The device to place the model on.
         """
         super().__init__()
 
-        self._tokenizer = FilmEfficientNetEncoder(embedding_dim=embedding_dim)
+        self._tokenizer = FilmEfficientNetEncoder(
+            embedding_dim=embedding_dim, device=device
+        )
 
         self._use_token_learner = use_token_learner
         if self._use_token_learner:
@@ -43,6 +52,7 @@ class RT1ImageTokenizer(nn.Module):
                 num_tokens=self._num_tokens,
                 bottleneck_dim=token_learner_bottleneck_dim,
                 dropout_rate=dropout_rate,
+                device=device,
             )
 
     @property

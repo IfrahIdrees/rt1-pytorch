@@ -2,9 +2,7 @@
 import torch
 from absl.testing import absltest, parameterized
 
-from robotic_transformer_pytorch.film_efficientnet.film_conditioning_layer import (
-    FilmConditioning,
-)
+from rt1_pytorch.film_efficientnet.film_conditioning_layer import FilmConditioning
 
 
 class FilmConditioningLayerTest(parameterized.TestCase):

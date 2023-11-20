@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 from gymnasium.spaces import Box, Dict, Discrete
 
-from robotic_transformer_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
+from rt1_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
 
 
 class ActionTokenizerTest(unittest.TestCase):

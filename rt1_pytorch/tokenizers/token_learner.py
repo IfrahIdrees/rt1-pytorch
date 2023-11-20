@@ -8,7 +8,12 @@ class MlpBlock(nn.Module):
     """Transformer MLP / feed-forward block."""
 
     def __init__(
-        self, input_dim: int, mlp_dim: int, out_dim: int, dropout_rate: float = 0.1
+        self,
+        input_dim: int,
+        mlp_dim: int,
+        out_dim: int,
+        dropout_rate: float = 0.1,
+        device="cuda",
     ):
         """Initializer for the MLP Block.
 
@@ -21,12 +26,14 @@ class MlpBlock(nn.Module):
             layer). Usually larger than the input/output dim.
           out_dim: The output dimension of the block.
           dropout_rate: Dropout rate to be applied after dense ( & activation)
+            layers.
+          device: The device to place the model on.
         """
         super().__init__()
         self._hidden_dropout = nn.Dropout(dropout_rate)
         self._output_dropout = nn.Dropout(dropout_rate)
-        self._hidden_layer = nn.Linear(input_dim, mlp_dim)
-        self._output_layer = nn.Linear(mlp_dim, out_dim)
+        self._hidden_layer = nn.Linear(input_dim, mlp_dim, device=device)
+        self._output_layer = nn.Linear(mlp_dim, out_dim, device=device)
         nn.init.xavier_uniform_(self._hidden_layer.weight)
         nn.init.xavier_uniform_(self._output_layer.weight)
         nn.init.normal_(self._hidden_layer.bias, std=1e-6)
@@ -51,15 +58,17 @@ class TokenLearner(nn.Module):
         num_tokens: int,
         bottleneck_dim: int = 64,
         dropout_rate: float = 0.0,
+        device="cuda",
     ):
         super().__init__()
 
-        self.layernorm = nn.LayerNorm(embedding_dim, eps=1e-6)
+        self.layernorm = nn.LayerNorm(embedding_dim, eps=1e-6, device=device)
         self.mlp = MlpBlock(
             input_dim=embedding_dim,
             mlp_dim=bottleneck_dim,
             out_dim=num_tokens,
             dropout_rate=dropout_rate,
+            device=device,
         )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:

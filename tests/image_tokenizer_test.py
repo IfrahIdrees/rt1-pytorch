@@ -4,7 +4,7 @@ import unittest
 import torch
 from absl.testing import parameterized
 
-from robotic_transformer_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
+from rt1_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
 
 
 class ImageTokenizerTest(parameterized.TestCase):

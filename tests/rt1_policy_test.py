@@ -1,15 +1,14 @@
-import unittest
-
 import numpy as np
-from einops import rearrange
+from absl.testing import absltest, parameterized
 from gymnasium.spaces import Box, Dict, Discrete
 from skimage import data
 
-from robotic_transformer_pytorch.rt1_policy import RT1Policy
+from rt1_pytorch.rt1_policy import RT1Policy
 
 
-class RT1PolicyTest(unittest.TestCase):
-    def test_policy_act_and_loss(self):
+class RT1PolicyTest(parameterized.TestCase):
+    @parameterized.parameters(["cpu", "cuda"])
+    def test_policy_act_and_loss(self, device="cpu"):
         observation_space = Dict(
             image=Box(low=0, high=255, shape=(300, 451, 3), dtype=np.uint8),
             context=Box(low=0.0, high=1.0, shape=(512,), dtype=np.float32),
@@ -33,7 +32,7 @@ class RT1PolicyTest(unittest.TestCase):
                 low=-np.pi / 2.0, high=np.pi / 2.0, shape=(3,), dtype=np.float32
             ),
         )
-        policy = RT1Policy(observation_space, action_space)
+        policy = RT1Policy(observation_space, action_space, device=device)
 
         image = data.chelsea()
         videos = np.reshape(image, (1, 1, *image.shape)).repeat(6, axis=1)
@@ -58,4 +57,4 @@ class RT1PolicyTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    absltest.main()

@@ -4,7 +4,7 @@ import torch
 from einops import rearrange
 from torch import nn
 
-from robotic_transformer_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
+from rt1_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
 
 
 def posemb_sincos_1d(seq, dim, temperature=10000, device=None, dtype=torch.float32):
@@ -46,6 +46,7 @@ class RT1Model(nn.Module):
         use_token_learner=True,
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
+        device="cuda",
     ):
         """
         Initializes the RT1Model.
@@ -62,19 +63,21 @@ class RT1Model(nn.Module):
             use_token_learner (bool): Whether to use token learner. Default is True.
             token_learner_bottleneck_dim (int): The dimension of the token learner bottleneck. Default is 64.
             token_learner_num_output_tokens (int): The number of output tokens of the token learner. Default is 8.
+            device (torch.device, optional): The device for tensor operations. Defaults to "cuda".
 
         Returns:
             None
         """
         super().__init__()
         self.time_sequence_length = time_sequence_length
-        self.action_encoder = nn.Linear(action_bins, embedding_dim)
+        self.action_encoder = nn.Linear(action_bins, embedding_dim, device=device)
         self.image_tokenizer = RT1ImageTokenizer(
             embedding_dim=embedding_dim,
             use_token_learner=use_token_learner,
             token_learner_bottleneck_dim=token_learner_bottleneck_dim,
             token_learner_num_output_tokens=token_learner_num_output_tokens,
             dropout_rate=dropout_rate,
+            device=device,
         )
 
         self.num_tokens = self.image_tokenizer._num_tokens
@@ -88,15 +91,18 @@ class RT1Model(nn.Module):
             dropout=dropout_rate,
             activation="gelu",
             batch_first=True,
+            device=device,
         )
 
         self.to_logits = nn.Sequential(
             nn.LayerNorm(embedding_dim),
             nn.Linear(embedding_dim, action_bins),
-        )
+        ).to(device)
+
         self.tokens_per_action = tokens_per_action
         self.action_bins = action_bins
         self.embedding_dim = embedding_dim
+        self.device = device
 
     def forward(
         self,
@@ -125,9 +131,11 @@ class RT1Model(nn.Module):
         ), f"Expected {self.time_sequence_length} frames, got videos.shape[1] = {f}"
 
         if texts is None:
-            texts = torch.zeros((b, f, self.embedding_dim))
+            texts = torch.zeros((b, f, self.embedding_dim), device=self.device)
         if actions is None:
-            actions = torch.zeros((b, f, self.tokens_per_action, self.action_bins))
+            actions = torch.zeros(
+                (b, f, self.tokens_per_action, self.action_bins), device=self.device
+            )
 
         # pack time dimension into batch dimension
         videos = rearrange(videos, "b f ... -> (b f) ...")
@@ -144,18 +152,21 @@ class RT1Model(nn.Module):
         actions = rearrange(actions, "b f a d -> b (f a) d")
 
         # sinusoidal positional embedding
-        pos_emb = posemb_sincos_1d(tokens.shape[1], tokens.shape[2])
+        pos_emb = posemb_sincos_1d(tokens.shape[1], tokens.shape[2], device=self.device)
         tokens = tokens + pos_emb
 
         # causal mask for tokens
         token_mask = torch.ones(
             tokens.shape[1], tokens.shape[1], dtype=torch.bool
         ).tril(0)
+        token_mask = token_mask.to(self.device)
 
         # encode actions to have the same embedding dimension as tokens
         action_tokens = self.action_encoder(actions)
 
-        pos_emb = posemb_sincos_1d(action_tokens.shape[1], action_tokens.shape[2])
+        pos_emb = posemb_sincos_1d(
+            action_tokens.shape[1], action_tokens.shape[2], device=self.device
+        )
         action_tokens = action_tokens + pos_emb
 
         # action mask: do not let actions attend to previous actions,
@@ -167,6 +178,7 @@ class RT1Model(nn.Module):
             torch.eye(self.tokens_per_action, self.tokens_per_action, dtype=torch.bool),
             action_mask,
         )
+        action_mask = action_mask.to(self.device)
 
         # causal mask between tokens and actions;
         # a_t attends to s_t' for all t'<=t
@@ -177,6 +189,7 @@ class RT1Model(nn.Module):
             memory_mask,
             torch.ones(self.tokens_per_action, self.num_tokens, dtype=torch.bool),
         )
+        memory_mask = memory_mask.to(self.device)
 
         attended_tokens = self.transformer(
             src=tokens,
