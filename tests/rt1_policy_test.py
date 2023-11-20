@@ -1,28 +1,37 @@
 import unittest
 
 import numpy as np
-from gymnasium.spaces import Box, Dict, Discrete, Text
+from einops import rearrange
+from gymnasium.spaces import Box, Dict, Discrete
 from skimage import data
 
 from robotic_transformer_pytorch.rt1_policy import RT1Policy
 
 
 class RT1PolicyTest(unittest.TestCase):
-    def test_encoding_single_image(self):
-        """Test that we get a correctly shaped encoding."""
+    def test_policy_act_and_loss(self):
         observation_space = Dict(
             image=Box(low=0, high=255, shape=(300, 451, 3), dtype=np.uint8),
             context=Box(low=0.0, high=1.0, shape=(512,), dtype=np.float32),
         )
         action_space = Dict(
             world_vector=Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32),
-            rotation_delta=Box(
-                low=-np.pi / 2.0, high=np.pi / 2.0, shape=(3,), dtype=np.float32
+            base_displacement_vertical_rotation=Box(
+                low=-np.pi / 2.0, high=np.pi / 2.0, shape=(1,), dtype=np.float32
             ),
             gripper_closedness_action=Box(
                 low=-1.0, high=1.0, shape=(1,), dtype=np.float32
             ),
-            terminate_episode=Discrete(2),
+            terminate_episode=Discrete(3),
+            base_displacement_vector=Box(
+                low=-1.0,
+                high=1.0,
+                shape=(3,),
+                dtype=np.float32,
+            ),
+            rotation_delta=Box(
+                low=-np.pi / 2.0, high=np.pi / 2.0, shape=(3,), dtype=np.float32
+            ),
         )
         policy = RT1Policy(observation_space, action_space)
 
@@ -33,13 +42,17 @@ class RT1PolicyTest(unittest.TestCase):
         # context (b, f, d) = (1, 6, 512)
         observations = {"image": videos, "context": context}
         actions = policy.act(observations)
+
         action_tokens = policy.action_tokenizer.tokenize(actions)
 
-        self.assertEqual(action_tokens.shape, (1, 6, 8))
+        self.assertEqual(action_tokens.shape, (1, 6, 12))
         obs = {k: v[0][0] for k, v in observations.items()}
         act = {k: v[0][0] for k, v in actions.items()}
         self.assertTrue(observation_space.contains(obs))
         self.assertTrue(action_space.contains(act))
+
+        loss = policy.loss(observations=observations, target_actions=actions)
+        self.assertGreater(loss, 0)
 
     # TODO (Rohan138): Add more tests
 

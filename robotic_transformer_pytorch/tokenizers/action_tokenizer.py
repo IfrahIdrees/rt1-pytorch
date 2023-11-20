@@ -112,16 +112,19 @@ class RT1ActionTokenizer:
         """Tokenizes an action."""
         action_tokens = []
         for k in self._action_order:
-            a = action[k]  # a is [batch, actions_size]
+            a = action[k]  # a is [batch, (time), action_size]
             space = self._action_space[k]
             if isinstance(space, gym.spaces.Discrete):
                 # Int32 actions are already assumed to be tokens
-                if not isinstance(a, np.ndarray):
+                if not (isinstance(a, np.ndarray)):
                     a = np.array(a, dtype=np.int32)
+                if a.shape[-1] == space.n:
+                    # Convert from one-hot to int
+                    a = np.argmax(a, axis=-1)
                 a = np.expand_dims(a, axis=-1)
-                token = a
                 if not np.all(a < space.n):
                     raise ValueError(f"Invalid action: {a} >= {space.n}")
+                token = a
             elif isinstance(space, gym.spaces.Box):
                 a = np.clip(a, space.low, space.high)
                 # Normalize the action [batch, actions_size]
@@ -129,7 +132,7 @@ class RT1ActionTokenizer:
                 # Bucket and discretize the action to action_bins, [batch, actions_size]
                 token = (token * (self._action_bins - 1)).astype(np.int32)
             action_tokens.append(token)
-        # Append all actions, [batch, all_actions_size]
+        # Append all actions, [batch, (time), all_actions_size]
         action_tokens = np.concatenate(action_tokens, axis=-1)
         return action_tokens
 

@@ -3,7 +3,9 @@ from typing import Dict, List, Optional, Tuple, Union
 import gymnasium as gym
 import numpy as np
 import torch
+import tree
 from einops import rearrange
+from torch.nn import functional as F
 
 from robotic_transformer_pytorch.rt1_model import RT1Model
 from robotic_transformer_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
@@ -70,6 +72,14 @@ class RT1Policy:
 
         self.embedding_dim = embedding_dim
 
+        for action_space in self.action_space.values():
+            if (
+                isinstance(action_space, gym.spaces.Discrete)
+                and action_space.n == time_sequence_length
+            ):
+                """stupid hack: make sure time sequence length != action_space.n
+                for any of the Discrete spaces otherwise action tokenizer breaks!"""
+
     def preprocess(
         self,
         videos: Union[np.ndarray, List[np.ndarray]],
@@ -82,7 +92,7 @@ class RT1Policy:
         Args:
             videos (Union[np.ndarray, List[np.ndarray]]): The input videos to preprocess.
               shape: (b, t, c, h, w) or (b, t, h, w, c)
-            texts (Union[np.ndarray, List[np.ndarray]]): The input texts to preprocess
+            texts (Union[np.ndarray, List[np.ndarray]]): The input texts to preprocess.
               shape: (b, d)
             actions (Optional[Dict]): The input actions to preprocess. Defaults to None.
               shape: (b, t, a)
@@ -99,8 +109,12 @@ class RT1Policy:
         texts = torch.tensor(texts)
 
         if actions is not None:
+            actions = tree.map_structure(
+                lambda a: rearrange(a, "b f ... -> (b f) ..."), actions
+            )
             actions = self.action_tokenizer.tokenize(actions)
             actions = torch.tensor(actions)
+            actions = rearrange(actions, "(b f) ... -> b f ...", b=videos.shape[0])
 
         return videos, texts, actions
 
@@ -127,20 +141,15 @@ class RT1Policy:
         actions = actions.sample()
         return actions, action_logits
 
-    def loss(
-        self,
-        videos: Union[np.ndarray, List[np.ndarray]],
-        texts: Union[np.ndarray, List[np.ndarray]],
-        actions: Dict,
-        target_actions: Dict,
-    ) -> torch.Tensor:
+    def loss(self, observations: Dict, target_actions: Dict) -> torch.Tensor:
         """
         Calculates the loss function for the given inputs.
 
-        Parameters:
-            videos (Union[np.ndarray, List[np.ndarray]]): The input videos. It can be a single numpy array or a list of numpy arrays.
-            texts (Union[np.ndarray, List[np.ndarray]]): The input texts. It can be a single numpy array or a list of numpy arrays.
-            actions (Dict): A dictionary containing the actions.
+        Args:
+            observations (Dict): A dictionary containing the observations.
+                It should have the following keys:
+                    - "image" (np.ndarray): The video observations.
+                    - "context" (np.ndarray): The context.
             target_actions (Dict): A dictionary containing the target actions.
 
         Returns:
@@ -149,21 +158,18 @@ class RT1Policy:
         Raises:
             None
         """
-        videos, texts, actions = self.preprocess(
+        videos = observations["image"]
+        texts = observations["context"]
+        videos, texts, target_actions = self.preprocess(
             videos,
             texts,
-            actions,
+            target_actions,
         )
-        action_logits = self.forward(videos, texts, actions)
+        _, action_logits = self.forward(videos, texts)
 
-        target_actions = rearrange(target_actions, "b t a -> (b t) a")
-        target_actions = self.action_tokenizer.tokenize(target_actions)
-        target_actions = rearrange(
-            target_actions, "(b t) ... -> b t ...", b=videos.shape[0]
-        )
-        target_actions = torch.tensor(target_actions)
-
-        loss = torch.nn.functional.cross_entropy(action_logits, target_actions)
+        action_logits = rearrange(action_logits, "b f a d -> (b f a) d")
+        target_actions = rearrange(target_actions, "b f a -> (b f a)")
+        loss = F.cross_entropy(action_logits, target_actions)
         return loss
 
     def act(self, observations: Dict) -> Dict[str, np.ndarray]:

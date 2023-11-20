@@ -1,17 +1,16 @@
 # Taken from https://docs.google.com/spreadsheets/d/1rPBD77tk60AEIGZrGSODwyyzs5FgCU9Uz3h-3_t2A9g/edit#gid=0
 import abc
 import dataclasses
-from typing import Any, Dict, NamedTuple, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Union
 
 import numpy as np
 import reverb
-import rlds
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tree
-from IPython import display
-from PIL import Image
 from rlds import rlds_types, transformations
+
+tf.config.experimental.set_visible_devices([], 'GPU')
 
 
 def dataset2path(name):
@@ -447,28 +446,63 @@ def n_step_pattern_builder(n: int) -> Any:
     return transform_fn
 
 
-def create_dataset(
-    dataset="fractal20220817_data", split="train", trajectory_length=100
-):
-    b = tfds.builder_from_directory(builder_dir=dataset2path(dataset))
-    ds = b.as_dataset(split=split)
+def get_observation_and_action_from_step(step):
+    return {
+        "observation": {
+            "image": step["observation"]["image"],
+            "embedding": step["observation"]["natural_language_embedding"],
+            "instruction": step["observation"]["natural_language_instruction"],
+        },
+        "action": step["action"],
+    }
 
-    # The RLDSSpec for the RT1 dataset.
-    rt1_spec = RLDSSpec(
-        observation_info=b.info.features["steps"]["observation"],
-        action_info=b.info.features["steps"]["action"],
+
+def create_dataset(
+    datasets=["fractal20220817_data"],
+    split="train",
+    trajectory_length=6,
+    batch_size=32,
+) -> Iterable[Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]]:
+    trajectory_datasets = []
+    for dataset in datasets:
+        b = tfds.builder_from_directory(builder_dir=dataset2path(dataset))
+        ds = b.as_dataset(split=split)
+
+        # The RLDSSpec for the RT1 dataset.
+        rt1_spec = RLDSSpec(
+            observation_info=b.info.features["steps"]["observation"],
+            action_info=b.info.features["steps"]["action"],
+        )
+
+        trajectory_transform = TrajectoryTransformBuilder(
+            rt1_spec, pattern_fn=n_step_pattern_builder(trajectory_length)
+        ).build(validate_expected_tensor_spec=False)
+
+        trajectory_dataset = trajectory_transform.transform_episodic_rlds_dataset(ds)
+
+        trajectory_datasets.append(trajectory_dataset)
+
+    trajectory_dataset = tf.data.Dataset.sample_from_datasets(trajectory_datasets)
+    # Shuffle and batch; loads 16 batches at a time, and then shuffles
+    trajectory_dataset = trajectory_dataset.shuffle(batch_size * 16).batch(batch_size)
+
+    trajectory_dataset = trajectory_dataset.map(
+        get_observation_and_action_from_step, num_parallel_calls=tf.data.AUTOTUNE
     )
 
-    trajectory_transform = TrajectoryTransformBuilder(
-        rt1_spec, pattern_fn=n_step_pattern_builder(trajectory_length)
-    ).build(validate_expected_tensor_spec=False)
-
-    trajectory_dataset = trajectory_transform.transform_episodic_rlds_dataset(ds)
-
-    return trajectory_dataset.as_numpy_iterator()
+    return iter(trajectory_dataset.as_numpy_iterator())
 
 
 if __name__ == "__main__":
-    ds = create_dataset(
-        dataset="fractal20220817_data", split="train[:100]", trajectory_length=6
-    )
+    ds = create_dataset(datasets=["fractal20220817_data"], split="train[:10]")
+    it = next(ds)
+
+    def print_shape(x):
+        if isinstance(x, dict):
+            shapes = tree.map_structure(lambda x: x.shape, x)
+        else:
+            shapes = x.shape
+        return shapes
+
+    shapes = tree.map_structure(print_shape, it)
+    print(shapes)

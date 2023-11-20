@@ -1,7 +1,7 @@
 from typing import Optional
 
 import torch
-from einops import rearrange, reduce
+from einops import rearrange
 from torch import nn
 
 from robotic_transformer_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
