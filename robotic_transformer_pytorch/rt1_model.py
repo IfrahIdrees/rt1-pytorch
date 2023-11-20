@@ -8,6 +8,20 @@ from robotic_transformer_pytorch.tokenizers.image_tokenizer import RT1ImageToken
 
 
 def posemb_sincos_1d(seq, dim, temperature=10000, device=None, dtype=torch.float32):
+    """
+    Generate positional embeddings using sine and cosine functions for a 1-dimensional sequence.
+
+    Parameters:
+        seq (int): The length of the sequence.
+        dim (int): The dimension of the positional embeddings.
+        temperature (float, optional): The temperature parameter for the sine function. Defaults to 10000.
+        device (torch.device, optional): The device for tensor operations. Defaults to None.
+        dtype (torch.dtype, optional): The data type of the positional embeddings. Defaults to torch.float32.
+
+    Returns:
+        torch.Tensor: The positional embeddings of shape (seq, dim), with each element computed as the concatenation of the sine and cosine values.
+
+    """
     n = torch.arange(seq, device=device)
     omega = torch.arange(dim // 2, device=device) / (dim // 2 - 1)
     omega = 1.0 / (temperature**omega)
@@ -34,6 +48,26 @@ class RT1Model(nn.Module):
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
     ):
+        """
+        Initializes the RT1Model.
+
+        Parameters:
+            tokens_per_action (int): The number of tokens per action. Default is 11.
+            action_bins (int): The number of action bins. Default is 256.
+            vocab_size (int): The size of the vocabulary. Default is 256.
+            num_layers (int): The number of transformer layers. Default is 6.
+            num_heads (int): The number of attention heads. Default is 8.
+            feed_forward_size (int): The size of the feed-forward layer. Default is 512.
+            dropout_rate (float): The dropout rate. Default is 0.1.
+            time_sequence_length (int): The length of the time sequence. Default is 6.
+            embedding_dim (int): The dimension of the embedding. Default is 512.
+            use_token_learner (bool): Whether to use token learner. Default is True.
+            token_learner_bottleneck_dim (int): The dimension of the token learner bottleneck. Default is 64.
+            token_learner_num_output_tokens (int): The number of output tokens of the token learner. Default is 8.
+
+        Returns:
+            None
+        """
         super().__init__()
         self.time_sequence_length = time_sequence_length
         self.action_encoder = nn.Linear(vocab_size, embedding_dim)
@@ -72,6 +106,17 @@ class RT1Model(nn.Module):
         texts: Optional[torch.Tensor] = None,
         actions: Optional[torch.Tensor] = None,
     ):
+        """
+        Forward pass of the model.
+
+        Args:
+            videos (torch.Tensor): The input videos. Shape is (b, t, h, w, c) or (b, t, c, h, w).
+            texts (Optional[torch.Tensor]): The input texts. Shape is (b, t, d).
+            actions (Optional[torch.Tensor]): The input actions. Shape is (b, t, a).
+
+        Returns:
+            torch.Tensor: The output logits. Shape is (b, t, a, d).
+        """
         b, t, *_ = videos.shape
         assert (
             t >= self.time_sequence_length
@@ -108,8 +153,7 @@ class RT1Model(nn.Module):
         # causal mask for tokens
         token_mask = torch.ones(
             tokens.shape[1], tokens.shape[1], dtype=torch.bool
-        ).triu(1)
-        token_mask = ~token_mask
+        ).tril(0)
 
         # encode actions to have the same embedding dimension as tokens
         if actions is None:
@@ -125,20 +169,24 @@ class RT1Model(nn.Module):
         pos_emb = posemb_sincos_1d(action_tokens.shape[1], action_tokens.shape[2])
         action_tokens = action_tokens + pos_emb
 
-        # action mask: do not let actions attend to themselves,
+        # action mask: do not let actions attend to previous actions,
         # a_t is independent of a_{t-1} given pi and s_t
-        action_mask = torch.zeros(
-            action_tokens.shape[1], action_tokens.shape[1], dtype=torch.bool
+        action_mask = torch.ones(
+            self.time_sequence_length, self.time_sequence_length, dtype=torch.bool
+        ).tril(0)
+        action_mask = torch.kron(
+            torch.eye(self.tokens_per_action, self.tokens_per_action, dtype=torch.bool),
+            action_mask,
         )
 
         # causal mask between tokens and actions;
         # a_t attends to s_t' for all t'<=t
         memory_mask = torch.ones(
             self.time_sequence_length, self.time_sequence_length, dtype=torch.bool
-        ).triu(1)
-        memory_mask = ~memory_mask
+        ).tril(0)
         memory_mask = torch.kron(
-            memory_mask, torch.ones(self.tokens_per_action, self.num_tokens)
+            memory_mask,
+            torch.ones(self.tokens_per_action, self.num_tokens, dtype=torch.bool),
         )
 
         attended_tokens = self.transformer(

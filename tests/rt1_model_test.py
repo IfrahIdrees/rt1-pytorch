@@ -11,6 +11,7 @@ class RT1ModelTest(unittest.TestCase):
 
         videos = torch.rand(2, 10, 3, 224, 224)
         logits = model(videos)
+        self.assertFalse(torch.isnan(logits).any())
         self.assertEqual(logits.shape, (2, 10, 11, 256))
 
     def test_videos_and_texts(self):
@@ -19,6 +20,7 @@ class RT1ModelTest(unittest.TestCase):
         videos = torch.rand(2, 10, 3, 224, 224)
         texts = torch.rand(2, 10, 512)
         logits = model(videos, texts)
+        self.assertFalse(torch.isnan(logits).any())
         self.assertEqual(logits.shape, (2, 10, 11, 256))
 
     def test_videos_and_actions(self):
@@ -27,6 +29,7 @@ class RT1ModelTest(unittest.TestCase):
         videos = torch.rand(2, 10, 3, 224, 224)
         actions = torch.rand(2, 10, 11, 256)
         logits = model(videos, actions=actions)
+        self.assertFalse(torch.isnan(logits).any())
         self.assertEqual(logits.shape, (2, 10, 11, 256))
 
     def test_videos_and_texts_and_actions(self):
@@ -36,6 +39,7 @@ class RT1ModelTest(unittest.TestCase):
         texts = torch.rand(2, 10, 512)
         actions = torch.rand(2, 10, 11, 256)
         logits = model(videos, texts, actions)
+        self.assertFalse(torch.isnan(logits).any())
         self.assertEqual(logits.shape, (2, 10, 11, 256))
 
     # TODO (Rohan138): Add more tests
