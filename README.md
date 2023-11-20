@@ -20,7 +20,37 @@ I run tests with `--batch-size 1 --split "train[:100]"`
 ```python main.py
 ```
 
-## Citations
+### Changelog
+- 11/10/2023: Initial commit! Wrote FiLM-EfficientNet and tests
+- 11/11/2023: Wrote tokenizers and initial RT1 skeleton; separate `tests` folder 
+download and experiment with datasets
+- 11/14/2023: Separate `RT1Model` and `RT1Policy`; fix einops
+- 11/16/2023: Add `data.py`; add back `USE` embeddings
+- 11/19/2023: Lots of cleanup; move trajectory logic to `data.py`; found 
+PyTorch [bug](https://github.com/pytorch/pytorch/pull/114083/files), added tests
+for model, policy, and loss; fix action tokenizer
+- 11/20/2023: Updates to `data.py`; add `device=cuda` support; add `fix_torch.sh`; 
+finalize `main.py`
+
+
+### TODO
+- Add smaller e.g. `dm-control` benchmarks
+- Add off-policy evaluation to evaluate on test dataset
+- Optimize so we don't run tokenizer 6x per image; see `efficient-encode` branch
+- Switch to predicting last token only; see `lasttoken` branch
+- Try [CoW-MOO](https://robot-moo.github.io/)
+- Try ViT instead as in the `lucidrains` implementation
+- Train and evaluate on real KUKA robot
+- Setup lint and CI pipeline; currently running `black` and `isort`
+
+## Acknowledgements
+
+Special thanks to [Raghava Uppuluri](https://github.com/raghavauppuluri13) 
+for all the ideas, late-night deubgging discussions, compute, hardware, and support!
+
+Initial implementation borrowed from [lucidrains/robotic-transformer-pytorch](https://github.com/lucidrains/robotic-transformer-pytorch)
+
+[Datasets](https://docs.google.com/spreadsheets/d/1rPBD77tk60AEIGZrGSODwyyzs5FgCU9Uz3h-3_t2A9g/edit#gid=0)
 
 ```bibtex
 @inproceedings{rt12022arxiv,
