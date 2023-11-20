@@ -27,6 +27,8 @@ setup(
         "gymnasium[mujoco]",
         "dm-reverb",
         "dm-control",
+        "rlds",
+        "einops",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
