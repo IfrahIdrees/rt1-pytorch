@@ -176,17 +176,15 @@ def main():
             if args.eval_freq and num_batches % args.eval_freq == 0:
                 print("Evaluating...")
                 policy.model.eval()
-                eval_loss = 0
-                num_eval_batches = 0
-                for batch in eval_dataset:
-                    num_eval_batches += 1
-                    observations = {
-                        "image": batch["observation"]["image"],
-                        "context": get_text_embedding(batch["observation"]),
-                    }
-                    actions = batch["action"]
-                    eval_loss += policy.loss(observations, actions).item()
-                print(f"eval loss: {eval_loss / num_eval_batches}")
+                batch = next(eval_dataset)
+                observations = {
+                    "image": batch["observation"]["image"],
+                    "context": get_text_embedding(batch["observation"]),
+                }
+                actions = batch["action"]
+                eval_loss = policy.loss(observations, actions)
+                eval_loss = eval_loss.item()
+                print(f"eval loss: {eval_loss}")
             if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
                 checkpoint_path = (
                     f"{args.checkpoint_dir}/checkpoint_{num_batches}"

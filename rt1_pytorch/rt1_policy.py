@@ -174,7 +174,8 @@ class RT1Policy:
 
         action_logits = rearrange(action_logits, "b f a d -> (b f a) d")
         target_actions = rearrange(target_actions, "b f a -> (b f a)")
-        loss = F.cross_entropy(action_logits, target_actions)
+        loss = F.cross_entropy(action_logits, target_actions, reduction="sum")
+        loss = loss / videos.shape[0]
         return loss
 
     def act(self, observations: Dict) -> Dict[str, np.ndarray]:
