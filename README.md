@@ -14,7 +14,7 @@ pip install -e .
 bash fix_torch.sh
 
 # See main.py for additional arguments
-python main.py --batch-size 1 --train-split "train[:-1000]" --eval-split "train[-1000:]" --train-batch-size 8 --eval-batch-size 1 --eval-freq 100 --checkpoint-freq 1000
+python main.py --batch-size 1 --train-split "train[:-1000]" --eval-split "train[-1000:]" --train-batch-size 8 --eval-batch-size 8 --eval-freq 100 --checkpoint-freq 1000
 ```
 
 ### Changelog
