@@ -113,11 +113,11 @@ class RT1Model(nn.Module):
             texts (Optional[torch.Tensor]): The input text embedding.
               Shape is (b, f, embedding_dim).
             actions (Optional[torch.Tensor]): The input actions.
-              Shape is (b, f, tokens_per_action, action_bins).
+              Shape is (b, tokens_per_action, action_bins).
 
         Returns:
             torch.Tensor: The output logits.
-              Shape is (b, f, tokens_per_action, action_bins).
+              Shape is (b, tokens_per_action, action_bins).
         """
         b, f, *_ = videos.shape
         assert (
@@ -127,7 +127,7 @@ class RT1Model(nn.Module):
         if texts is None:
             texts = torch.zeros((b, f, self.embedding_dim))
         if actions is None:
-            actions = torch.zeros((b, f, self.tokens_per_action, self.action_bins))
+            actions = torch.zeros((b, self.tokens_per_action, self.action_bins))
 
         # pack time dimension into batch dimension
         videos = rearrange(videos, "b f ... -> (b f) ...")
@@ -141,7 +141,6 @@ class RT1Model(nn.Module):
 
         # pack time dimension into token dimension
         tokens = rearrange(tokens, "b f c n -> b (f n) c")
-        actions = rearrange(actions, "b f a d -> b (f a) d")
 
         # sinusoidal positional embedding
         pos_emb = posemb_sincos_1d(tokens.shape[1], tokens.shape[2])
@@ -161,21 +160,15 @@ class RT1Model(nn.Module):
         # action mask: do not let actions attend to previous actions,
         # a_t is independent of a_{t-1} given pi and s_t
         action_mask = torch.ones(
-            self.time_sequence_length, self.time_sequence_length, dtype=torch.bool
+            self.tokens_per_action, self.tokens_per_action, dtype=torch.bool
         ).tril(0)
-        action_mask = torch.kron(
-            torch.eye(self.tokens_per_action, self.tokens_per_action, dtype=torch.bool),
-            action_mask,
-        )
 
         # causal mask between tokens and actions;
-        # a_t attends to s_t' for all t'<=t
+        # a attends to s_t' for all t'<=t
         memory_mask = torch.ones(
-            self.time_sequence_length, self.time_sequence_length, dtype=torch.bool
-        ).tril(0)
-        memory_mask = torch.kron(
-            memory_mask,
-            torch.ones(self.tokens_per_action, self.num_tokens, dtype=torch.bool),
+            self.tokens_per_action,
+            self.num_tokens * self.time_sequence_length,
+            dtype=torch.bool,
         )
 
         attended_tokens = self.transformer(
@@ -185,9 +178,6 @@ class RT1Model(nn.Module):
             tgt_mask=action_mask,
             memory_mask=memory_mask,
         )
-
-        # unpack time dimension from token dimension
-        attended_tokens = rearrange(attended_tokens, "b (f n) c -> b f n c", b=b, f=f)
 
         logits = self.to_logits(attended_tokens)
         return logits
