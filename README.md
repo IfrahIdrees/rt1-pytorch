@@ -17,7 +17,9 @@ bash fix_torch.sh
 ## Usage
 See `main.py` for the arguments
 I run tests with `--batch-size 1 --split "train[:100]"`
-```python main.py
+
+```
+python main.py
 ```
 
 ### Changelog
