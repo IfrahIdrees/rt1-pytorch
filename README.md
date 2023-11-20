@@ -4,7 +4,7 @@
 
 Implementation of <a href="https://ai.googleblog.com/2022/12/rt-1-robotics-transformer-for-real.html">RT1 (Robotic Transformer)</a>, from the Robotics at Google team, in Pytorch
 
-## Install
+## Instructions
 
 ```bash
 git clone https://github.com/Rohan138/rt1-pytorch.git
@@ -12,12 +12,9 @@ pip install -e .
 
 # Make sure to run this! See https://github.com/pytorch/pytorch/pull/114083/files
 bash fix_torch.sh
-```
 
-## Usage
-See `main.py` for the arguments
-I run tests with `--batch-size 1 --split "train[:100]"`
-```python main.py
+# See main.py for additional arguments
+python main.py --batch-size 1 --train-split "train[:-1000]" --eval-split "train[-1000:]" --train-batch-size 8 --eval-batch-size 8 --eval-freq 100 --checkpoint-freq 1000
 ```
 
 ### Changelog
