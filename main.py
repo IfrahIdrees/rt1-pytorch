@@ -1,8 +1,10 @@
 import argparse
+import os
 from typing import Dict
 
 import gymnasium as gym
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 from torch.optim import Adam
 
@@ -18,10 +20,16 @@ def parse_args():
         default=["fractal20220817_data"],
     )
     parser.add_argument(
-        "--split",
+        "--train-split",
         type=str,
-        default="train",
-        help="train or test; use e.g. train[:100] for the first 100 episodes",
+        default="train[:-1000]",
+        help="use e.g. train[:100] for the first 100 episodes",
+    )
+    parser.add_argument(
+        "--test-split",
+        type=str,
+        default="train[-1000:]",
+        help="use e.g. test[:100] for the first 100 episodes",
     )
     parser.add_argument(
         "--epochs",
@@ -36,10 +44,16 @@ def parse_args():
         help="learning rate",
     )
     parser.add_argument(
-        "--batch-size",
+        "--train-batch-size",
         type=int,
         default=32,
-        help="batch size",
+        help="train batch size",
+    )
+    parser.add_argument(
+        "--test-batch-size",
+        type=int,
+        default=32,
+        help="test batch size",
     )
     parser.add_argument(
         "--trajectory-length",
@@ -59,17 +73,44 @@ def parse_args():
         default="cuda",
         help="device to use for training",
     )
+    parser.add_argument(
+        "--test-freq",
+        type=int,
+        default=None,
+        help="test frequency in number of batches; defaults to None",
+    )
+    parser.add_argument(
+        "--checkpoint-freq",
+        type=int,
+        default=None,
+        help="checkpoint frequency in number of batches; defaults to None",
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        type=str,
+        default="checkpoints",
+        help="directory to save checkpoints",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
+
     print("Loading dataset...")
-    dataset = create_dataset(
+    train_dataset = create_dataset(
         datasets=args.datasets,
-        split=args.split,
+        split=args.train_split,
         trajectory_length=args.trajectory_length,
-        batch_size=args.batch_size,
+        batch_size=args.train_batch_size,
+    )
+    test_dataset = create_dataset(
+        datasets=args.datasets,
+        split=args.test_split,
+        trajectory_length=args.trajectory_length,
+        batch_size=args.test_batch_size,
     )
 
     observation_space = gym.spaces.Dict(
@@ -117,17 +158,41 @@ def main():
 
     print("Training...")
     for _ in range(args.epochs):
-        for batch in dataset:
+        num_batches = 0
+        for batch in train_dataset:
+            policy.model.train()
+            num_batches += 1
             observations = {
                 "image": batch["observation"]["image"],
                 "context": get_text_embedding(batch["observation"]),
             }
             actions = batch["action"]
             loss = policy.loss(observations, actions)
-            print(f"Loss: {loss.item()}")
+            print(f"Training loss: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            if args.test_freq and num_batches % args.test_freq == 0:
+                print("Testing...")
+                policy.model.eval()
+                test_loss = 0
+                num_test_batches = 0
+                for batch in test_dataset:
+                    num_test_batches += 1
+                    observations = {
+                        "image": batch["observation"]["image"],
+                        "context": get_text_embedding(batch["observation"]),
+                    }
+                    actions = batch["action"]
+                    test_loss += policy.loss(observations, actions).item()
+                print(f"Test loss: {test_loss / num_test_batches}")
+            if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
+                checkpoint_path = (
+                    f"{args.checkpoint_dir}/checkpoint_{num_batches}"
+                    + f"_loss_{loss.item():.3f}.pt"
+                )
+                torch.save(policy.model.state_dict(), checkpoint_path)
+                print(f"Saved checkpoint to {checkpoint_path}")
 
 
 if __name__ == "__main__":

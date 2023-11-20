@@ -30,7 +30,7 @@ download and experiment with datasets
 PyTorch [bug](https://github.com/pytorch/pytorch/pull/114083/files), added tests
 for model, policy, and loss; fix action tokenizer
 - 11/20/2023: Updates to `data.py`; add `device=cuda` support; add `fix_torch.sh`; 
-finalize `main.py`
+finalize `main.py`; add simple evaluation and checkpointing logic
 
 
 ### TODO
