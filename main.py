@@ -141,6 +141,7 @@ def main():
     policy = RT1Policy(
         observation_space=observation_space,
         action_space=action_space,
+        device=args.device,
     )
     policy.model.train()
     optimizer = Adam(policy.model.parameters(), lr=args.lr)
@@ -157,7 +158,7 @@ def main():
             return observation["embedding"]
 
     print("Training...")
-    for _ in range(args.epochs):
+    for epoch in range(args.epochs):
         num_batches = 0
         for batch in train_dataset:
             policy.model.train()
@@ -168,7 +169,7 @@ def main():
             }
             actions = batch["action"]
             loss = policy.loss(observations, actions)
-            print(f"Training loss: {loss.item()}")
+            print(f"Training loss Epoch {epoch} Batch {num_batches}: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
