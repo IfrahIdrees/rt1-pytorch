@@ -23,6 +23,10 @@ setup(
         "sentence-transformers",
         "tensorflow",
         "tensorflow_datasets",
+        "transformers",
+        "gymnasium[mujoco]",
+        "reverb",
+        "dm_control",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
