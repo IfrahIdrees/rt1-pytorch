@@ -26,10 +26,10 @@ def parse_args():
         help="use e.g. train[:100] for the first 100 episodes",
     )
     parser.add_argument(
-        "--test-split",
+        "--eval-split",
         type=str,
         default="train[-1000:]",
-        help="use e.g. test[:100] for the first 100 episodes",
+        help="use e.g. eval[:100] for the first 100 episodes",
     )
     parser.add_argument(
         "--epochs",
@@ -50,10 +50,10 @@ def parse_args():
         help="train batch size",
     )
     parser.add_argument(
-        "--test-batch-size",
+        "--eval-batch-size",
         type=int,
         default=32,
-        help="test batch size",
+        help="eval batch size",
     )
     parser.add_argument(
         "--trajectory-length",
@@ -74,10 +74,10 @@ def parse_args():
         help="device to use for training",
     )
     parser.add_argument(
-        "--test-freq",
+        "--eval-freq",
         type=int,
         default=None,
-        help="test frequency in number of batches; defaults to None",
+        help="eval frequency in number of batches; defaults to None",
     )
     parser.add_argument(
         "--checkpoint-freq",
@@ -106,11 +106,11 @@ def main():
         trajectory_length=args.trajectory_length,
         batch_size=args.train_batch_size,
     )
-    test_dataset = create_dataset(
+    eval_dataset = create_dataset(
         datasets=args.datasets,
-        split=args.test_split,
+        split=args.eval_split,
         trajectory_length=args.trajectory_length,
-        batch_size=args.test_batch_size,
+        batch_size=args.eval_batch_size,
     )
 
     observation_space = gym.spaces.Dict(
@@ -172,20 +172,20 @@ def main():
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if args.test_freq and num_batches % args.test_freq == 0:
-                print("Testing...")
+            if args.eval_freq and num_batches % args.eval_freq == 0:
+                print("Evaluating...")
                 policy.model.eval()
-                test_loss = 0
-                num_test_batches = 0
-                for batch in test_dataset:
-                    num_test_batches += 1
+                eval_loss = 0
+                num_eval_batches = 0
+                for batch in eval_dataset:
+                    num_eval_batches += 1
                     observations = {
                         "image": batch["observation"]["image"],
                         "context": get_text_embedding(batch["observation"]),
                     }
                     actions = batch["action"]
-                    test_loss += policy.loss(observations, actions).item()
-                print(f"Test loss: {test_loss / num_test_batches}")
+                    eval_loss += policy.loss(observations, actions).item()
+                print(f"eval loss: {eval_loss / num_eval_batches}")
             if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
                 checkpoint_path = (
                     f"{args.checkpoint_dir}/checkpoint_{num_batches}"
