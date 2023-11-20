@@ -472,4 +472,3 @@ if __name__ == "__main__":
     ds = create_dataset(
         dataset="fractal20220817_data", split="train[:100]", trajectory_length=6
     )
-    breakpoint()

@@ -53,24 +53,19 @@ class RT1ImageTokenizer(nn.Module):
             num_tokens = 100
         return num_tokens
 
-    def forward(
-        self,
-        image: torch.Tensor,
-        context: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    def forward(self, image: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         """Gets image tokens.
 
         Args:
           image: Images of shape (b, h, w, 3) to tokenize.
-          context: An optional context vector (e.g., a natural language embedding).
+          context: A context vector (e.g., a natural language embedding).
             Expected to have shape (b, embedding_dim).
 
         Returns:
           tokens: has shape (batch, num_tokens_per_timestep, embedding_dim)
         """
 
-        if context is not None:
-            assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
+        assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
         tokens = self._tokenizer(image, context)
         if self._use_token_learner:
             tokens = self._token_learner(tokens)

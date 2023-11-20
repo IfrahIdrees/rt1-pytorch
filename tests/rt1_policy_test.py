@@ -29,15 +29,17 @@ class RT1PolicyTest(unittest.TestCase):
         image = data.chelsea()
         videos = np.reshape(image, (1, 1, *image.shape)).repeat(6, axis=1)
         # videos (b, f, h, w, c) = (1, 6, 300, 451, 3)
-        context = np.random.rand(1, 512).astype(np.float32)
-        # context (b, d) = (1, 512)
-        observation = {"image": videos, "context": context}
-        actions = policy.act(observation)
+        context = np.random.rand(1, 6, 512).astype(np.float32)
+        # context (b, f, d) = (1, 6, 512)
+        observations = {"image": videos, "context": context}
+        actions = policy.act(observations)
         action_tokens = policy.action_tokenizer.tokenize(actions)
 
         self.assertEqual(action_tokens.shape, (1, 6, 8))
-        self.assertTrue(action_space.contains(actions))
-        print(actions)
+        obs = {k: v[0][0] for k, v in observations.items()}
+        act = {k: v[0][0] for k, v in actions.items()}
+        self.assertTrue(observation_space.contains(obs))
+        self.assertTrue(action_space.contains(act))
 
     # TODO (Rohan138): Add more tests
 

@@ -19,7 +19,7 @@ As an example, if an action is:
 Then we build a sequence of tokens of length 11 [one for each dimension].
 The int32 type action dimensions are already tokenized,
 the float dimensions are bucketed according to the spaces min and max. Each
-dimension has 'vocab_size' buckets.
+dimension has 'action_bins' buckets.
 
 Currently, this tokenizer assumes one action space and it is highly recommended
 to spaceify the 'action_order', i.e. the order of keys in the dict.
@@ -40,17 +40,17 @@ class RT1ActionTokenizer:
     def __init__(
         self,
         action_space: gym.spaces.Dict,
-        vocab_size: int,
+        action_bins: int,
         action_order: Optional[list[str]] = None,
     ):
         """Instantiates an RT1ActionTokenizer.
 
         Args:
-          vocab_size: Number of buckets to discretize action to.
+          action_bins: Number of buckets to discretize action to.
           action_order: Order of the action names, used to discern the order of
             tokenized actions to detokenize and assemble back to action tensor
         """
-        self._vocab_size = vocab_size
+        self._action_bins = action_bins
         self._action_space = action_space
         if action_order is None:
             self._action_order = list(action_space.keys())
@@ -118,6 +118,7 @@ class RT1ActionTokenizer:
                 # Int32 actions are already assumed to be tokens
                 if not isinstance(a, np.ndarray):
                     a = np.array(a, dtype=np.int32)
+                a = np.expand_dims(a, axis=-1)
                 token = a
                 if not np.all(a < space.n):
                     raise ValueError(f"Invalid action: {a} >= {space.n}")
@@ -125,8 +126,8 @@ class RT1ActionTokenizer:
                 a = np.clip(a, space.low, space.high)
                 # Normalize the action [batch, actions_size]
                 token = (a - space.low) / (space.high - space.low)
-                # Bucket and discretize the action to vocab_size, [batch, actions_size]
-                token = (token * (self._vocab_size - 1)).astype(np.int32)
+                # Bucket and discretize the action to action_bins, [batch, actions_size]
+                token = (token * (self._action_bins - 1)).astype(np.int32)
             action_tokens.append(token)
         # Append all actions, [batch, all_actions_size]
         action_tokens = np.concatenate(action_tokens, axis=-1)
@@ -150,15 +151,13 @@ class RT1ActionTokenizer:
                 action[k] = np.where(
                     action[k] >= space.n, np.zeros_like(action[k]), action[k]
                 )
-                # Expand the action to [batch, 1]
-                action[k] = np.expand_dims(action[k], axis=-1)
                 token_index += 1
             elif isinstance(space, gym.spaces.Box):
                 actions = []
                 for _ in range(space.shape[0]):
                     a = action_tokens[..., token_index : token_index + 1]
                     a = a.astype(np.float32)
-                    a = a / (self._vocab_size - 1)
+                    a = a / (self._action_bins - 1)
                     a = (a * (space.high[0] - space.low[0])) + space.low[0]
                     actions.append(a)
                     token_index += 1

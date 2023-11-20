@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import gymnasium as gym
 import numpy as np
 import torch
+from einops import rearrange
 
 from robotic_transformer_pytorch.rt1_model import RT1Model
 from robotic_transformer_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
@@ -18,7 +19,6 @@ class RT1Policy:
         num_heads=8,
         feed_forward_size=256,
         dropout_rate=0.1,
-        vocab_size=256,
         time_sequence_length=6,
         embedding_dim=512,
         use_token_learner=True,
@@ -36,7 +36,6 @@ class RT1Policy:
             num_heads (int, optional): The number of attention heads in each transformer layer. Defaults to 8.
             feed_forward_size (int, optional): The size of the feed-forward layer in the transformer. Defaults to 256.
             dropout_rate (float, optional): The dropout rate for the transformer layers. Defaults to 0.1.
-            vocab_size (int, optional): The size of the vocabulary for the token learner. Defaults to 256.
             time_sequence_length (int, optional): The length of the time sequence for the model. Defaults to 6.
             embedding_dim (int, optional): The dimensionality of the input embeddings. Defaults to 512.
             use_token_learner (bool, optional): Whether to use the token learner module. Defaults to True.
@@ -51,7 +50,7 @@ class RT1Policy:
         self.action_bins = action_bins
         self.action_tokenizer = RT1ActionTokenizer(
             action_space=action_space,
-            vocab_size=vocab_size,
+            action_bins=action_bins,
             action_order=list(action_space.keys()),
         )
 
@@ -62,7 +61,6 @@ class RT1Policy:
             num_heads=num_heads,
             feed_forward_size=feed_forward_size,
             dropout_rate=dropout_rate,
-            vocab_size=vocab_size,
             time_sequence_length=time_sequence_length,
             embedding_dim=embedding_dim,
             use_token_learner=use_token_learner,
@@ -75,7 +73,7 @@ class RT1Policy:
     def preprocess(
         self,
         videos: Union[np.ndarray, List[np.ndarray]],
-        texts: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
+        texts: Union[np.ndarray, List[np.ndarray]],
         actions: Optional[Dict] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -84,7 +82,7 @@ class RT1Policy:
         Args:
             videos (Union[np.ndarray, List[np.ndarray]]): The input videos to preprocess.
               shape: (b, t, c, h, w) or (b, t, h, w, c)
-            texts (Optional[Union[np.ndarray, List[np.ndarray]]]): The input texts to preprocess. Defaults to None.
+            texts (Union[np.ndarray, List[np.ndarray]]): The input texts to preprocess
               shape: (b, d)
             actions (Optional[Dict]): The input actions to preprocess. Defaults to None.
               shape: (b, t, a)
@@ -94,28 +92,22 @@ class RT1Policy:
         """
         if not isinstance(videos, np.ndarray):
             videos = np.stack(videos, axis=0)
-
-        b, t, *_ = videos.shape
         videos = torch.tensor(videos)
 
-        if texts is not None:
-            if not isinstance(texts, np.ndarray):
-                texts = np.stack(texts, axis=0)
-            assert (
-                texts.shape[0] == b and texts.shape[1] == self.embedding_dim
-            ), f"Incorrect text shape {texts.shape}"
-            texts = texts.reshape(b, 1, self.embedding_dim)
-            texts = np.repeat(texts, t, axis=1)
-            texts = torch.tensor(texts)
+        if not isinstance(texts, np.ndarray):
+            texts = np.stack(texts, axis=0)
+        texts = torch.tensor(texts)
+
         if actions is not None:
             actions = self.action_tokenizer.tokenize(actions)
             actions = torch.tensor(actions)
+
         return videos, texts, actions
 
     def forward(
         self,
         videos: torch.Tensor,
-        texts: Optional[torch.Tensor] = None,
+        texts: torch.Tensor,
         actions: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -123,11 +115,12 @@ class RT1Policy:
 
         Args:
             videos (torch.Tensor): Input videos.
-            texts (Optional[torch.Tensor]): Optional input texts.
+            texts (torch.Tensor): input contexts.
             actions (Optional[torch.Tensor]): Optional input actions.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the sampled actions and the action logits.
+            action_logits (Tuple[torch.Tensor, torch.Tensor]):
+              A tuple containing the sampled actions and the action logits.
         """
         action_logits = self.model(videos, texts, actions)
         actions = torch.distributions.Categorical(logits=action_logits)
@@ -163,7 +156,11 @@ class RT1Policy:
         )
         action_logits = self.forward(videos, texts, actions)
 
+        target_actions = rearrange(target_actions, "b t a -> (b t) a")
         target_actions = self.action_tokenizer.tokenize(target_actions)
+        target_actions = rearrange(
+            target_actions, "(b t) ... -> b t ...", b=videos.shape[0]
+        )
         target_actions = torch.tensor(target_actions)
 
         loss = torch.nn.functional.cross_entropy(action_logits, target_actions)
@@ -182,16 +179,10 @@ class RT1Policy:
             Dict[str, np.ndarray]: A dictionary containing the actions. It has the following keys:
                 - "actions" (np.ndarray): The actions performed based on the observations.
         """
-        assert self.observation_space.contains(
-            observations
-        ), f"observations {observations} not in observation space {self.observation_space}."
         videos = observations["image"]
         texts = observations["context"]
         videos, texts, _ = self.preprocess(videos, texts)
         actions, _ = self.forward(videos, texts)
         actions = actions.detach().cpu().numpy()
         actions = self.action_tokenizer.detokenize(actions)
-        assert self.action_space.contains(
-            {}
-        ), f"actions {actions} not in action space {self.action_space}."
         return actions

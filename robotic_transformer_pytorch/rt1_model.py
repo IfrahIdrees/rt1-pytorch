@@ -37,7 +37,6 @@ class RT1Model(nn.Module):
         self,
         tokens_per_action=11,
         action_bins=256,
-        vocab_size=256,
         num_layers=6,
         num_heads=8,
         feed_forward_size=512,
@@ -54,7 +53,6 @@ class RT1Model(nn.Module):
         Parameters:
             tokens_per_action (int): The number of tokens per action. Default is 11.
             action_bins (int): The number of action bins. Default is 256.
-            vocab_size (int): The size of the vocabulary. Default is 256.
             num_layers (int): The number of transformer layers. Default is 6.
             num_heads (int): The number of attention heads. Default is 8.
             feed_forward_size (int): The size of the feed-forward layer. Default is 512.
@@ -70,7 +68,7 @@ class RT1Model(nn.Module):
         """
         super().__init__()
         self.time_sequence_length = time_sequence_length
-        self.action_encoder = nn.Linear(vocab_size, embedding_dim)
+        self.action_encoder = nn.Linear(action_bins, embedding_dim)
         self.image_tokenizer = RT1ImageTokenizer(
             embedding_dim=embedding_dim,
             use_token_learner=use_token_learner,
@@ -94,7 +92,7 @@ class RT1Model(nn.Module):
 
         self.to_logits = nn.Sequential(
             nn.LayerNorm(embedding_dim),
-            nn.Linear(embedding_dim, tokens_per_action * action_bins),
+            nn.Linear(embedding_dim, action_bins),
         )
         self.tokens_per_action = tokens_per_action
         self.action_bins = action_bins
@@ -110,41 +108,40 @@ class RT1Model(nn.Module):
         Forward pass of the model.
 
         Args:
-            videos (torch.Tensor): The input videos. Shape is (b, t, h, w, c) or (b, t, c, h, w).
-            texts (Optional[torch.Tensor]): The input texts. Shape is (b, t, d).
-            actions (Optional[torch.Tensor]): The input actions. Shape is (b, t, a).
+            videos (torch.Tensor): The input videos.
+              Shape is (b, f, h, w, c) or (b, f, c, h, w).
+            texts (Optional[torch.Tensor]): The input text embedding.
+              Shape is (b, f, embedding_dim).
+            actions (Optional[torch.Tensor]): The input actions.
+              Shape is (b, f, tokens_per_action, action_bins).
 
         Returns:
-            torch.Tensor: The output logits. Shape is (b, t, a, d).
+            torch.Tensor: The output logits.
+              Shape is (b, f, tokens_per_action, action_bins).
         """
-        b, t, *_ = videos.shape
+        b, f, *_ = videos.shape
         assert (
-            t >= self.time_sequence_length
-        ), f"Please provide at least {self.time_sequence_length} frames"
+            f == self.time_sequence_length
+        ), f"Expected {self.time_sequence_length} frames, got videos.shape[1] = {f}"
+
+        if texts is None:
+            texts = torch.zeros((b, f, self.embedding_dim))
+        if actions is None:
+            actions = torch.zeros((b, f, self.tokens_per_action, self.action_bins))
 
         # pack time dimension into batch dimension
-        videos = rearrange(videos, "b t h w c -> (b t) h w c")
-        if texts is not None:
-            texts = rearrange(texts, "b t d -> (b t) d")
+        videos = rearrange(videos, "b f ... -> (b f) ...")
+        texts = rearrange(texts, "b f d -> (b f) d")
 
         # tokenize images and texts
         tokens = self.image_tokenizer(videos, texts)
 
-        # unpack time dimension
-        tokens = rearrange(tokens, "(b t) c n -> b t c n", b=b, t=t)
+        # unpack time dimension from batch dimension
+        tokens = rearrange(tokens, "(b f) c n -> b f c n", b=b, f=f)
 
-        # repeat tokens by rolling self.time_sequence_length times over t
-        indices = torch.stack(
-            [
-                torch.arange(s, s + t - self.time_sequence_length + 1)
-                for s in range(self.time_sequence_length)
-            ],
-            dim=-1,
-        )
-        tokens = tokens[:, indices, :, :]  # (b, t-5, 6, c, n)
-
-        # pack time dimension into batch dimension
-        tokens = rearrange(tokens, "b t f c n -> (b t) (f n) c")
+        # pack time dimension into token dimension
+        tokens = rearrange(tokens, "b f c n -> b (f n) c")
+        actions = rearrange(actions, "b f a d -> b (f a) d")
 
         # sinusoidal positional embedding
         pos_emb = posemb_sincos_1d(tokens.shape[1], tokens.shape[2])
@@ -156,15 +153,7 @@ class RT1Model(nn.Module):
         ).tril(0)
 
         # encode actions to have the same embedding dimension as tokens
-        if actions is None:
-            actions = torch.zeros((b, t, self.tokens_per_action, self.action_bins))
         action_tokens = self.action_encoder(actions)
-
-        # index previous action
-        action_tokens = action_tokens[:, indices, :, :]
-
-        # pack time dimension into batch dimension
-        action_tokens = rearrange(action_tokens, "b t f n a -> (b t) (f n) a")
 
         pos_emb = posemb_sincos_1d(action_tokens.shape[1], action_tokens.shape[2])
         action_tokens = action_tokens + pos_emb
@@ -197,32 +186,8 @@ class RT1Model(nn.Module):
             memory_mask=memory_mask,
         )
 
-        pooled = reduce(attended_tokens, "b n d -> b d", "mean")
+        # unpack time dimension from token dimension
+        attended_tokens = rearrange(attended_tokens, "b (f n) c -> b f n c", b=b, f=f)
 
-        logits = self.to_logits(pooled)
-        logits = rearrange(
-            logits,
-            "(b t) (n d) -> b t n d",
-            b=b,
-            t=t - self.time_sequence_length + 1,
-            n=self.tokens_per_action,
-            d=self.action_bins,
-        )
-
-        # Add zero actions for first self.time_sequence_length timesteps
-        logits = torch.cat(
-            [
-                torch.zeros(
-                    (
-                        b,
-                        self.time_sequence_length - 1,
-                        self.tokens_per_action,
-                        self.action_bins,
-                    )
-                ),
-                logits,
-            ],
-            dim=1,
-        )
-
+        logits = self.to_logits(attended_tokens)
         return logits
