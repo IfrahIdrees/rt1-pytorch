@@ -35,9 +35,9 @@ class RT1PolicyTest(unittest.TestCase):
         actions = policy.act(observations)
         action_tokens = policy.action_tokenizer.tokenize(actions)
 
-        self.assertEqual(action_tokens.shape, (1, 6, 8))
+        self.assertEqual(action_tokens.shape, (1, 8))
         obs = {k: v[0][0] for k, v in observations.items()}
-        act = {k: v[0][0] for k, v in actions.items()}
+        act = {k: v[0] for k, v in actions.items()}
         self.assertTrue(observation_space.contains(obs))
         self.assertTrue(action_space.contains(act))
 
