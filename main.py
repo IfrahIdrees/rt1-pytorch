@@ -91,6 +91,12 @@ def parse_args():
         default="checkpoints",
         help="directory to save checkpoints",
     )
+    parser.add_argument(
+        "--load-checkpoint",
+        type=str,
+        default=None,
+        help="checkpoint to load from; defaults to None",
+    )
     return parser.parse_args()
 
 
@@ -142,6 +148,7 @@ def main():
         observation_space=observation_space,
         action_space=action_space,
         device=args.device,
+        checkpoint_path=args.load_checkpoint,
     )
     policy.model.train()
     optimizer = Adam(policy.model.parameters(), lr=args.lr)
@@ -150,6 +157,15 @@ def main():
         if args.sentence_transformer
         else None
     )
+    # Total number of params
+    total_params = sum(p.numel() for p in policy.model.parameters())
+    # Transformer params
+    transformer_params = sum(p.numel() for p in policy.model.transformer.parameters())
+    # FiLM-EfficientNet and TokenLearner params
+    tokenizer_params = sum(p.numel() for p in policy.model.image_tokenizer.parameters())
+    print(f"Total params: {total_params}")
+    print(f"Transformer params: {transformer_params}")
+    print(f"FiLM-EfficientNet+TokenLearner params: {tokenizer_params}")
 
     def get_text_embedding(observation: Dict):
         if text_embedding_model is not None:

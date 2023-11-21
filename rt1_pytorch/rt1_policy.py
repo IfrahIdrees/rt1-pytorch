@@ -17,7 +17,7 @@ class RT1Policy:
         observation_space: gym.spaces.Dict,
         action_space: gym.spaces.Dict,
         action_bins=256,
-        num_layers=8,
+        num_layers=4,
         num_heads=8,
         feed_forward_size=256,
         dropout_rate=0.1,
@@ -27,6 +27,7 @@ class RT1Policy:
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
         device="cuda",
+        checkpoint_path: Optional[str] = None,
     ):
         """
         Initializes an instance of the class.
@@ -45,6 +46,7 @@ class RT1Policy:
             token_learner_bottleneck_dim (int, optional): The dimensionality of the bottleneck layer in the token learner. Defaults to 64.
             token_learner_num_output_tokens (int, optional): The number of output tokens from the token learner. Defaults to 8.
             device (str, optional): The device to use for the model. Defaults to "cuda".
+            checkpoint_path (str, optional): load checkpoint from path. Defaults to None.
 
         Returns:
             None
@@ -84,6 +86,9 @@ class RT1Policy:
                 for any of the Discrete spaces otherwise action tokenizer breaks!"""
 
         self.device = device
+        if checkpoint_path is not None:
+            print(f"Loading checkpoint from {checkpoint_path}...")
+            self.model.load_state_dict(torch.load(checkpoint_path))
 
     def preprocess(
         self,

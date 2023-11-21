@@ -483,12 +483,20 @@ def create_dataset(
         trajectory_datasets.append(trajectory_dataset)
 
     trajectory_dataset = tf.data.Dataset.sample_from_datasets(trajectory_datasets)
-    # Shuffle and batch; loads 16 batches at a time, and then shuffles
-    trajectory_dataset = trajectory_dataset.shuffle(batch_size * 16).batch(batch_size)
 
     trajectory_dataset = trajectory_dataset.map(
         get_observation_and_action_from_step, num_parallel_calls=tf.data.AUTOTUNE
     )
+
+    # Shuffle, batch, prefetch
+    trajectory_dataset = trajectory_dataset.shuffle(batch_size * 16)
+    trajectory_dataset = trajectory_dataset.batch(
+        batch_size,
+        drop_remainder=True,
+        num_parallel_calls=tf.data.AUTOTUNE,
+        deterministic=False,
+    )
+    trajectory_dataset = trajectory_dataset.prefetch(tf.data.AUTOTUNE)
 
     return iter(trajectory_dataset.as_numpy_iterator())
 
