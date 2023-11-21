@@ -1,13 +1,10 @@
-"""A FiLM Efficientnet contextual image tokenizer used in Robotics Transformer 1.
+"""The image tokenizer combining the FiLMEfficientNet and TokenLearner from RT1.
 """
-from typing import Optional
-
 import torch
 from torch import nn
 
-from rt1_pytorch.film_efficientnet.pretrained_efficientnet_encoder import (
-    FilmEfficientNetEncoder,
-)
+from rt1_pytorch.film_efficientnet.film_conditioning_layer import FilmConditioning
+from rt1_pytorch.film_efficientnet.film_efficientnet import FilmEfficientNet
 from rt1_pytorch.tokenizers.token_learner import TokenLearner
 
 
@@ -16,7 +13,8 @@ class RT1ImageTokenizer(nn.Module):
 
     def __init__(
         self,
-        embedding_dim: int,
+        arch: str = "efficientnet_b3",
+        embedding_dim: int = 512,
         use_token_learner=True,
         token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
@@ -26,6 +24,7 @@ class RT1ImageTokenizer(nn.Module):
         """Instantiates a RT1ImageTokenizer.
 
         Args:
+          arch: The efficientnet variant to use.
           embedding_dim: The embedding size of the tokens.
           use_token_learner: Whether to use token learner. See
             https://arxiv.org/abs/2106.11297
@@ -40,8 +39,8 @@ class RT1ImageTokenizer(nn.Module):
         """
         super().__init__()
 
-        self._tokenizer = FilmEfficientNetEncoder(
-            embedding_dim=embedding_dim, device=device
+        self.film_efficientnet = FilmEfficientNet(
+            arch=arch, embedding_dim=embedding_dim, device=device
         )
 
         self._use_token_learner = use_token_learner
@@ -55,14 +54,6 @@ class RT1ImageTokenizer(nn.Module):
                 device=device,
             )
 
-    @property
-    def tokens_per_context_image(self) -> int:
-        if self._use_token_learner:
-            num_tokens = self._num_tokens
-        else:
-            num_tokens = 100
-        return num_tokens
-
     def forward(self, image: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         """Gets image tokens.
 
@@ -74,9 +65,9 @@ class RT1ImageTokenizer(nn.Module):
         Returns:
           tokens: has shape (batch, num_tokens_per_timestep, embedding_dim)
         """
-
         assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
-        tokens = self._tokenizer(image, context)
+
+        tokens = self.film_efficientnet(image, context)
         if self._use_token_learner:
             tokens = self._token_learner(tokens)
         elif len(tokens.shape) == 4:

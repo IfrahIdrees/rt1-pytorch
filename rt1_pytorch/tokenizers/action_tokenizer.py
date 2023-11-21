@@ -118,9 +118,6 @@ class RT1ActionTokenizer:
                 # Int32 actions are already assumed to be tokens
                 if not (isinstance(a, np.ndarray)):
                     a = np.array(a, dtype=np.int32)
-                if a.shape[-1] == space.n:
-                    # Convert from one-hot to int
-                    a = np.argmax(a, axis=-1)
                 a = np.expand_dims(a, axis=-1)
                 if not np.all(a < space.n):
                     raise ValueError(f"Invalid action: {a} >= {space.n}")

@@ -100,7 +100,7 @@ class ActionTokenizerTest(unittest.TestCase):
             gripper_closedness_action=Box(
                 low=-1.0, high=1.0, shape=(1,), dtype=np.float32
             ),
-            terminate_episode=Discrete(2),
+            terminate_episode=Discrete(3),
         )
 
         tokenizer = RT1ActionTokenizer(
@@ -124,7 +124,7 @@ class ActionTokenizerTest(unittest.TestCase):
                     low=-np.pi / 2.0, high=np.pi / 2.0, size=3
                 ),
                 gripper_closedness_action=np.random.uniform(low=0.0, high=1.0, size=1),
-                terminate_episode=np.array(0),
+                terminate_episode=np.array(0, dtype=np.int32),
             )
             action_tokens = tokenizer.tokenize(action)
             policy_action = tokenizer.detokenize(action_tokens)

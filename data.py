@@ -453,7 +453,11 @@ def get_observation_and_action_from_step(step):
             "embedding": step["observation"]["natural_language_embedding"],
             "instruction": step["observation"]["natural_language_instruction"],
         },
-        "action": step["action"],
+        # Decode one hot discrete actions
+        "action": {
+            k: tf.argmax(v, axis=-1) if v.dtype == tf.int32 else v
+            for k, v in step["action"].items()
+        },
     }
 
 
