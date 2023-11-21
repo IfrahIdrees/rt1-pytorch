@@ -41,7 +41,7 @@ finalize `main.py`; add simple evaluation and checkpointing logic
 - Try ViT instead as in the `lucidrains` implementation
 - Hyperparameter tuning
 - Tests! All the tests! Unit tests, learning tests, testing all the way!
-- Oh what fun, it is to write, a bunch of tests that way!
+- Oh what fun, it is to write, a bunch of tests all day!
 - Train and evaluate on real KUKA robot
 - Setup lint and CI pipeline; currently running `black` and `isort`
 
