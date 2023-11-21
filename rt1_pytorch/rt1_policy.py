@@ -82,8 +82,10 @@ class RT1Policy:
                 isinstance(action_space, gym.spaces.Discrete)
                 and action_space.n == time_sequence_length
             ):
-                """stupid hack: make sure time sequence length != action_space.n
-                for any of the Discrete spaces otherwise action tokenizer breaks!"""
+                raise ValueError(
+                    f"""stupid hack:Time sequence length ({time_sequence_length}) 
+                    must be different from action space length ({action_space.n})."""
+                )
 
         self.device = device
         if checkpoint_path is not None:

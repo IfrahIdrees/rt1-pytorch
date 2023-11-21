@@ -31,12 +31,16 @@ finalize `main.py`; add simple evaluation and checkpointing logic
 
 
 ### TODO
-- Add smaller e.g. `dm-control` benchmarks
+- Add smaller `d4rl` benchmarks
 - Add off-policy evaluation to evaluate on test dataset
+- Implement DDP; make sure we check loss reduction stays the same
+- Try onehot encoding discrete actions instead of passing the raw action as a token
 - Optimize so we don't run tokenizer 6x per image; see `efficient-encode` branch
 - Switch to predicting last token only; see `lasttoken` branch
 - Try [CoW-MOO](https://robot-moo.github.io/)
 - Try ViT instead as in the `lucidrains` implementation
+- Hyperparameter tuning
+- Tests! All the tests! Unit tests, learning tests, testing all the way!
 - Train and evaluate on real KUKA robot
 - Setup lint and CI pipeline; currently running `black` and `isort`
 
