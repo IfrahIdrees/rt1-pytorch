@@ -15,21 +15,37 @@ from rt1_pytorch.rt1_policy import RT1Policy
 class RT1Env(gym.Env):
     def __init__(
         self,
-        env_id="halfcheetah-expert-v2",
-        context="run forwards",
-        context_dim=512,
+        env_id: str,
+        embedding: np.ndarray,
+        embedding_dim=384,
+        num_frames=6,
     ):
-        self.env = gym.make("GymV21Environment-v0", env_id=env_id)
+        self.env = gym.wrappers.FrameStack(
+            gym.make("GymV21Environment-v0", env_id=env_id), num_frames
+        )
         self.action_space = gym.spaces.Dict({"actions": self.env.action_space})
-        self.context = context
+        self.embedding = embedding
         self.observation_space = gym.spaces.Dict(
             {
                 "observations": self.env.observation_space,
-                "context": gym.spaces.Box(
-                    low=-1.0, high=1.0, shape=(context_dim,), dtype=np.float32
+                "embedding": gym.spaces.Box(
+                    low=-1.0, high=1.0, shape=(embedding_dim,), dtype=np.float32
                 ),
             }
         )
+
+    def reset(self):
+        obs, info = self.env.reset()
+        return ({"image": obs, "embedding": self.embedding}, info)
+
+    def step(self, action):
+        o, r, term, trunc, info = self.env.step(action)
+        return ({"image": o, "embedding": self.embedding}, r, term, trunc, info)
+
+    def get_dataset(self):
+        dataset = self.env.get_dataset()
+        breakpoint()
+        return dataset
 
 
 def parse_args():
@@ -112,34 +128,29 @@ def main():
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
+    text_embedding_model = SentenceTransformer(args.sentence_transformer)
+    embedding = text_embedding_model.encode(args.context)
+
     print("Loading environment...")
     env = RT1Env(
         env_id=args.dataset,
-        context=args.context,
+        embedding=embedding,
+        embedding_dim=text_embedding_model.get_sentence_embedding_dimension(),
+        num_frames=args.trajectory_length,
     )
 
     print("Loading dataset...")
-    train_dataset = create_dataset(
-        datasets=args.datasets,
-        split=args.train_split,
-        trajectory_length=args.trajectory_length,
-        batch_size=args.train_batch_size,
-    )
+    train_dataset = env.get_dataset()
 
     print("Building policy...")
     policy = RT1Policy(
-        observation_space=observation_space,
-        action_space=action_space,
+        observation_space=env.unwrapped.observation_space,
+        action_space=env.action_space,
         device=args.device,
         checkpoint_path=args.load_checkpoint,
     )
     policy.model.train()
     optimizer = Adam(policy.model.parameters(), lr=args.lr)
-    text_embedding_model = (
-        SentenceTransformer(args.sentence_transformer)
-        if args.sentence_transformer
-        else None
-    )
     # Total number of params
     total_params = sum(p.numel() for p in policy.model.parameters())
     # Transformer params
@@ -151,10 +162,7 @@ def main():
     print(f"FiLM-EfficientNet+TokenLearner params: {tokenizer_params}")
 
     def get_text_embedding(observation: Dict):
-        if text_embedding_model is not None:
-            return text_embedding_model.encode(observation["instruction"])
-        else:
-            return observation["embedding"]
+        return observation["embedding"]
 
     print("Training...")
     for epoch in range(args.epochs):
@@ -174,13 +182,21 @@ def main():
             optimizer.step()
             if args.eval_freq and num_batches % args.eval_freq == 0:
                 print("Evaluating...")
+                breakpoint()
                 policy.model.eval()
-                batch = next(eval_dataset)
-                observations = {
-                    "image": batch["observation"]["image"],
-                    "context": get_text_embedding(batch["observation"]),
-                }
-                actions = batch["action"]
+                obs, _ = env.reset()
+                observations = []
+                actions = []
+                done = False
+                while not done:
+                    obs = {
+                        "image": obs["image"],
+                        "context": get_text_embedding(obs),
+                    }
+                    act = policy.act(obs)
+                    observations, _, _, _, _ = env.step(obs)
+                    observations.append(obs)
+                    actions.append(act)
                 eval_loss = policy.loss(observations, actions)
                 eval_loss = eval_loss.item()
                 print(f"eval loss: {eval_loss}")
