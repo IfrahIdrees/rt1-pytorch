@@ -29,6 +29,8 @@ setup(
         "dm-control",
         "rlds",
         "einops",
+        "git+https://github.com/imgeorgiev/dmc2gymnasium.git",
+        "h5py",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

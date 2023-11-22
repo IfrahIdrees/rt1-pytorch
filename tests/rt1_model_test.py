@@ -27,25 +27,25 @@ class RT1ModelTest(parameterized.TestCase):
         self.assertEqual(logits.shape, (batch_size, 6, 11, 256))
 
     @parameterized.parameters(["cpu", "cuda"])
-    def test_videos_and_actions(self, device="cpu"):
+    def test_videos_and_action_logits(self, device="cpu"):
         model = RT1Model(device=device)
 
         batch_size = 1
         videos = torch.rand(batch_size, 6, 3, 224, 224, device=device)
-        actions = torch.rand(batch_size, 6, 11, 256, device=device)
-        logits = model(videos, actions=actions)
+        action_logits = torch.rand(batch_size, 6, 11, 256, device=device)
+        logits = model(videos, action_logits=action_logits)
         self.assertFalse(torch.isnan(logits).any())
         self.assertEqual(logits.shape, (batch_size, 6, 11, 256))
 
     @parameterized.parameters(["cpu", "cuda"])
-    def test_videos_and_texts_and_actions(self, device="cpu"):
+    def test_videos_and_texts_and_action_logits(self, device="cpu"):
         model = RT1Model(device=device)
 
         batch_size = 1
         videos = torch.rand(batch_size, 6, 3, 224, 224, device=device)
         texts = torch.rand(batch_size, 6, 512, device=device)
-        actions = torch.rand(batch_size, 6, 11, 256, device=device)
-        logits = model(videos, texts, actions)
+        action_logits = torch.rand(batch_size, 6, 11, 256, device=device)
+        logits = model(videos, texts, action_logits)
         self.assertFalse(torch.isnan(logits).any())
         self.assertEqual(logits.shape, (batch_size, 6, 11, 256))
 

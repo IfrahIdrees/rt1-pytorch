@@ -123,9 +123,11 @@ class RT1ActionTokenizer:
                     raise ValueError(f"Invalid action: {a} >= {space.n}")
                 token = a
             elif isinstance(space, gym.spaces.Box):
-                a = np.clip(a, space.low, space.high)
+                low = space.low[0]
+                high = space.high[0]
+                a = np.clip(a, low, high)
                 # Normalize the action [batch, actions_size]
-                token = (a - space.low) / (space.high - space.low)
+                token = (a - low) / (high - low)
                 # Bucket and discretize the action to action_bins, [batch, actions_size]
                 token = (token * (self._action_bins - 1)).astype(np.int32)
             action_tokens.append(token)

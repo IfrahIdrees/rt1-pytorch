@@ -44,13 +44,17 @@ class RT1PolicyTest(parameterized.TestCase):
 
         action_tokens = policy.action_tokenizer.tokenize(actions)
 
-        self.assertEqual(action_tokens.shape, (1, 6, 12))
+        self.assertEqual(action_tokens.shape, (1, 12))
         obs = {k: v[0][0] for k, v in observations.items()}
-        act = {k: v[0][0] for k, v in actions.items()}
+        act = {k: v[0] for k, v in actions.items()}
         self.assertTrue(observation_space.contains(obs))
         self.assertTrue(action_space.contains(act))
 
-        loss = policy.loss(observations=observations, target_actions=actions)
+        target_actions = {
+            k: np.expand_dims(v, axis=1).repeat(6, axis=1) for k, v in actions.items()
+        }
+
+        loss = policy.loss(observations=observations, target_actions=target_actions)
         self.assertGreater(loss, 0)
 
     # TODO (Rohan138): Add more tests

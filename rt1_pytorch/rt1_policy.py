@@ -105,7 +105,7 @@ class RT1Policy:
             videos (Union[np.ndarray, List[np.ndarray]]): The input videos to preprocess.
               shape: (b, t, c, h, w) or (b, t, h, w, c)
             texts (Union[np.ndarray, List[np.ndarray]]): The input texts to preprocess.
-              shape: (b, d)
+              shape: (b, t, d)
             actions (Optional[Dict]): The input actions to preprocess. Defaults to None.
               shape: (b, t, a)
 
@@ -114,18 +114,22 @@ class RT1Policy:
         """
         if not isinstance(videos, np.ndarray):
             videos = np.stack(videos, axis=0)
-        videos = torch.tensor(videos, device=self.device)
+        videos = torch.tensor(videos, device=self.device, dtype=torch.float32)
 
         if not isinstance(texts, np.ndarray):
             texts = np.stack(texts, axis=0)
-        texts = torch.tensor(texts, device=self.device)
+        texts = torch.tensor(texts, device=self.device, dtype=torch.float32)
 
         if actions is not None:
+            actions = {
+                k: np.stack(v, axis=0) if not (isinstance(v, np.ndarray)) else v
+                for k, v in actions.items()
+            }
             actions = tree.map_structure(
                 lambda a: rearrange(a, "b f ... -> (b f) ..."), actions
             )
             actions = self.action_tokenizer.tokenize(actions)
-            actions = torch.tensor(actions, device=self.device)
+            actions = torch.tensor(actions, device=self.device, dtype=torch.long)
             actions = rearrange(actions, "(b f) ... -> b f ...", b=videos.shape[0])
 
         return videos, texts, actions
@@ -134,7 +138,7 @@ class RT1Policy:
         self,
         videos: torch.Tensor,
         texts: torch.Tensor,
-        actions: Optional[torch.Tensor] = None,
+        action_logits: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the model.
@@ -142,13 +146,13 @@ class RT1Policy:
         Args:
             videos (torch.Tensor): Input videos.
             texts (torch.Tensor): input contexts.
-            actions (Optional[torch.Tensor]): Optional input actions.
+            action_logits (Optional[torch.Tensor]): Optional input action logits.
 
         Returns:
             action_logits (Tuple[torch.Tensor, torch.Tensor]):
               A tuple containing the sampled actions and the action logits.
         """
-        action_logits = self.model(videos, texts, actions)
+        action_logits = self.model(videos, texts, action_logits)
         actions = torch.distributions.Categorical(logits=action_logits)
         actions = actions.sample()
         return actions, action_logits
@@ -188,6 +192,8 @@ class RT1Policy:
     def act(self, observations: Dict) -> Dict[str, np.ndarray]:
         """
         Performs an action based on the given observations.
+        Note that this takes in observations of shape (b,t, ...)
+        but only returns the last action for each trajectory of shape (b, ...).
 
         Args:
             observations (Dict): A dictionary containing the observations. It should have the following keys:
@@ -201,7 +207,9 @@ class RT1Policy:
         videos = observations["image"]
         texts = observations["context"]
         videos, texts, _ = self.preprocess(videos, texts)
-        actions, _ = self.forward(videos, texts)
+        with torch.no_grad():
+            actions, _ = self.forward(videos, texts)
         actions = actions.detach().cpu().numpy()
         actions = self.action_tokenizer.detokenize(actions)
+        actions = tree.map_structure(lambda a: a[:, -1], actions)
         return actions

@@ -3,6 +3,7 @@ from typing import Optional
 import torch
 from einops import rearrange
 from torch import nn
+from torch.nn import functional as F
 
 from rt1_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
 
@@ -108,7 +109,7 @@ class RT1Model(nn.Module):
         self,
         videos: torch.Tensor,
         texts: Optional[torch.Tensor] = None,
-        actions: Optional[torch.Tensor] = None,
+        action_logits: Optional[torch.Tensor] = None,
     ):
         """
         Forward pass of the model.
@@ -118,7 +119,7 @@ class RT1Model(nn.Module):
               Shape is (b, f, h, w, c) or (b, f, c, h, w).
             texts (Optional[torch.Tensor]): The input text embedding.
               Shape is (b, f, embedding_dim).
-            actions (Optional[torch.Tensor]): The input actions.
+            action_logits (Optional[torch.Tensor]): The input action_logits.
               Shape is (b, f, tokens_per_action, action_bins).
 
         Returns:
@@ -132,9 +133,14 @@ class RT1Model(nn.Module):
 
         if texts is None:
             texts = torch.zeros((b, f, self.embedding_dim), device=self.device)
-        if actions is None:
-            actions = torch.zeros(
+        if action_logits is None:
+            action_logits = torch.zeros(
                 (b, f, self.tokens_per_action, self.action_bins), device=self.device
+            )
+        elif action_logits.shape != (b, f, self.tokens_per_action, self.action_bins):
+            raise ValueError(
+                f"""Expected action_logits.shape = (b, f, tokens_per_action, action_bins),
+                got {action_logits.shape}; did you pass in raw actions instead?"""
             )
 
         # pack time dimension into batch dimension
@@ -149,7 +155,7 @@ class RT1Model(nn.Module):
 
         # pack time dimension into token dimension
         tokens = rearrange(tokens, "b f c n -> b (f n) c")
-        actions = rearrange(actions, "b f a d -> b (f a) d")
+        action_logits = rearrange(action_logits, "b f a d -> b (f a) d")
 
         # sinusoidal positional embedding
         pos_emb = posemb_sincos_1d(tokens.shape[1], tokens.shape[2], device=self.device)
@@ -161,15 +167,15 @@ class RT1Model(nn.Module):
         ).tril(0)
         token_mask = token_mask.to(self.device)
 
-        # encode actions to have the same embedding dimension as tokens
-        action_tokens = self.action_encoder(actions)
+        # encode action_logits to have the same embedding dimension as tokens
+        action_tokens = self.action_encoder(action_logits)
 
         pos_emb = posemb_sincos_1d(
             action_tokens.shape[1], action_tokens.shape[2], device=self.device
         )
         action_tokens = action_tokens + pos_emb
 
-        # action mask: do not let actions attend to previous actions,
+        # action mask: do not let action_logits attend to previous action_logits,
         # a_t is independent of a_{t-1} given pi and s_t
         action_mask = torch.ones(
             self.time_sequence_length, self.time_sequence_length, dtype=torch.bool
@@ -180,7 +186,7 @@ class RT1Model(nn.Module):
         )
         action_mask = action_mask.to(self.device)
 
-        # causal mask between tokens and actions;
+        # causal mask between tokens and action_logits;
         # a_t attends to s_t' for all t'<=t
         memory_mask = torch.ones(
             self.time_sequence_length, self.time_sequence_length, dtype=torch.bool

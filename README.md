@@ -17,7 +17,7 @@ bash fix_torch.sh
 python main.py --train-split "train[:1000]" --eval-split "train[:1000]" --train-batch-size 8 --eval-batch-size 8 --eval-freq 100 --checkpoint-freq 1000
 ```
 
-### Changelog
+## Changelog
 - 11/10/2023: Initial commit! Wrote FiLM-EfficientNet and tests
 - 11/11/2023: Wrote tokenizers and initial RT1 skeleton; separate `tests` folder 
 download and experiment with datasets
@@ -28,22 +28,29 @@ PyTorch [bug](https://github.com/pytorch/pytorch/pull/114083/files), added tests
 for model, policy, and loss; fix action tokenizer
 - 11/20/2023: Updates to `data.py`; add `device=cuda` support; add `fix_torch.sh`; 
 finalize `main.py`; add simple evaluation and checkpointing logic
+start `vd4rl_main.py`; cleanup FiLM-EfficientNet files
+- Finished `vd4rl_main.py`; some additional cleanup; GPU benchmarking
 
+Note: Per trajectory, the memory consumed is:
+  - Model: 38 MB
+  - Forward (no grad): 384 MB
+  - Forward (with grad): 2120 MB
+  - Backward: 40 MB
 
-### TODO
-- Add smaller `d4rl` benchmarks
-- Add off-policy evaluation to evaluate on test dataset
-- Implement DDP; make sure we check loss reduction stays the same
-- Try onehot encoding discrete actions instead of passing the raw action as a token
-- Optimize so we don't run tokenizer 6x per image; see `efficient-encode` branch
-- Switch to predicting last token only; see `lasttoken` branch
-- Try [CoW-MOO](https://robot-moo.github.io/)
-- Try ViT instead as in the `lucidrains` implementation
-- Hyperparameter tuning
-- Tests! All the tests! Unit tests, learning tests, testing all the way!
-- Oh what fun, it is to write, a bunch of tests all day!
-- Train and evaluate on real KUKA robot
-- Setup lint and CI pipeline; currently running `black` and `isort`
+## TODO
+- [x] Add smaller `vd4rl` benchmarks
+- [] Add off-policy evaluation to evaluate on test dataset
+- [] Implement DDP; make sure we check loss reduction stays the same
+- [] Try onehot encoding discrete actions instead of passing the raw action as a token
+- [] Optimize so we don't run tokenizer 6x per image; see `efficient-encode` branch
+- [] Try predicting last token only; see `lasttoken` branch
+- [] Hyperparameter tuning
+- [] Tests! All the tests! Unit tests, learning tests, testing all the way!
+- [] Oh what fun, it is to write, a bunch of tests all day!
+- [] Try [CoW-MOO](https://robot-moo.github.io/)
+- [] Try ViT instead as in the `lucidrains` implementation
+- [] Train and evaluate on real KUKA robot
+- [] Setup lint and CI pipeline; currently running `black` and `isort`
 
 ## Acknowledgements
 
