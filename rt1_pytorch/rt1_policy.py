@@ -16,6 +16,7 @@ class RT1Policy:
         self,
         observation_space: gym.spaces.Dict,
         action_space: gym.spaces.Dict,
+        arch: str = "efficientnet_b3",
         action_bins=256,
         num_layers=4,
         num_heads=8,

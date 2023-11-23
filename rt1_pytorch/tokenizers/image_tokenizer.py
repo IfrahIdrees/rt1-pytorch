@@ -42,17 +42,18 @@ class RT1ImageTokenizer(nn.Module):
         self.film_efficientnet = FilmEfficientNet(
             arch=arch, embedding_dim=embedding_dim, device=device
         )
+        self.num_output_tokens = self.film_efficientnet.output_hw**2
 
         self._use_token_learner = use_token_learner
         if self._use_token_learner:
-            self._num_tokens = token_learner_num_output_tokens
             self._token_learner = TokenLearner(
                 embedding_dim=embedding_dim,
-                num_tokens=self._num_tokens,
+                num_tokens=token_learner_num_output_tokens,
                 bottleneck_dim=token_learner_bottleneck_dim,
                 dropout_rate=dropout_rate,
                 device=device,
             )
+            self.num_output_tokens = token_learner_num_output_tokens
 
     def forward(self, image: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
         """Gets image tokens.
@@ -68,9 +69,9 @@ class RT1ImageTokenizer(nn.Module):
         assert len(context.shape) == 2, f"Unexpected context shape: {context.shape}"
 
         tokens = self.film_efficientnet(image, context)
-        if self._use_token_learner:
-            tokens = self._token_learner(tokens)
-        elif len(tokens.shape) == 4:
+        if len(tokens.shape) == 4:
             # (b, c, h, w) -> (b, c, h*w)
             tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)
+        if self._use_token_learner:
+            tokens = self._token_learner(tokens)
         return tokens

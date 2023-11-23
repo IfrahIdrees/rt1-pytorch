@@ -276,18 +276,19 @@ def main():
     policy = RT1Policy(
         observation_space=env.observation_space,
         action_space=env.action_space,
+        arch="efficientnet_b0",
+        action_bins=1024,
+        num_layers=2,
+        num_heads=4,
+        feed_forward_size=128,
+        dropout_rate=0.01,
+        time_sequence_length=args.trajectory_length,
+        embedding_dim=embedding_dim,
+        use_token_learner=True,
+        token_learner_bottleneck_dim=32,
+        token_learner_num_output_tokens=8,
         device=args.device,
         checkpoint_path=args.load_checkpoint,
-        embedding_dim=embedding_dim,
-        action_bins=256,
-        num_layers=4,
-        num_heads=8,
-        feed_forward_size=256,
-        dropout_rate=0.1,
-        time_sequence_length=args.trajectory_length,
-        use_token_learner=True,
-        token_learner_bottleneck_dim=64,
-        token_learner_num_output_tokens=8,
     )
     policy.model.train()
     optimizer = Adam(policy.model.parameters(), lr=args.lr)
@@ -306,6 +307,10 @@ def main():
 
     print("Training...")
     for epoch in range(1, args.epochs + 1):
+        if args.wandb:
+            wandb.log({"epoch": epoch}, step=epoch)
+        else:
+            print(f"Epoch {epoch}")
         num_batches = 0
         for batch in train_dataset:
             policy.model.train()

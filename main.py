@@ -5,9 +5,9 @@ from typing import Dict
 import gymnasium as gym
 import numpy as np
 import torch
+import wandb
 from sentence_transformers import SentenceTransformer
 from torch.optim import Adam
-import wandb
 
 from data import create_dataset
 from rt1_pytorch.rt1_policy import RT1Policy
@@ -187,6 +187,10 @@ def main():
 
     print("Training...")
     for epoch in range(1, args.epochs + 1):
+        if args.wandb:
+            wandb.log({"epoch": epoch}, step=epoch)
+        else:
+            print(f"Epoch {epoch}")
         num_batches = 0
         for batch in train_dataset:
             policy.model.train()

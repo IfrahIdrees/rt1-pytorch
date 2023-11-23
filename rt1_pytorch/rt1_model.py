@@ -3,7 +3,6 @@ from typing import Optional
 import torch
 from einops import rearrange
 from torch import nn
-from torch.nn import functional as F
 
 from rt1_pytorch.tokenizers.image_tokenizer import RT1ImageTokenizer
 
@@ -36,6 +35,7 @@ def posemb_sincos_1d(seq, dim, temperature=10000, device=None, dtype=torch.float
 class RT1Model(nn.Module):
     def __init__(
         self,
+        arch: str = "efficientnet_b3",
         tokens_per_action=11,
         action_bins=256,
         num_layers=4,
@@ -53,6 +53,7 @@ class RT1Model(nn.Module):
         Initializes the RT1Model.
 
         Parameters:
+            arch (str): The efficientnet variant to use. Default is "efficientnet_b3".
             tokens_per_action (int): The number of tokens per action. Default is 11.
             action_bins (int): The number of action bins. Default is 256.
             num_layers (int): The number of transformer layers. Default is 6.
@@ -73,6 +74,7 @@ class RT1Model(nn.Module):
         self.time_sequence_length = time_sequence_length
         self.action_encoder = nn.Linear(action_bins, embedding_dim, device=device)
         self.image_tokenizer = RT1ImageTokenizer(
+            arch=arch,
             embedding_dim=embedding_dim,
             use_token_learner=use_token_learner,
             token_learner_bottleneck_dim=token_learner_bottleneck_dim,
@@ -81,7 +83,7 @@ class RT1Model(nn.Module):
             device=device,
         )
 
-        self.num_tokens = self.image_tokenizer._num_tokens
+        self.num_tokens = self.image_tokenizer.num_output_tokens
 
         self.transformer = nn.Transformer(
             d_model=embedding_dim,

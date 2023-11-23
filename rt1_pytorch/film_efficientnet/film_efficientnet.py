@@ -44,8 +44,9 @@ class MBConvFilm(nn.Module):
     def __init__(self, embedding_dim: int, mbconv: Union[MBConv, FusedMBConv]):
         super().__init__()
         self.mbconv = mbconv
+        num_channels = mbconv.block[-1][1].num_features
         self.film = FilmConditioning(
-            embedding_dim=embedding_dim, num_channels=mbconv.block[-1][-1].num_features
+            embedding_dim=embedding_dim, num_channels=num_channels
         )
 
     def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
@@ -221,7 +222,7 @@ def get_weights(arch: str) -> Weights:
     """
 
     if arch == "efficientnet_b0":
-        weights = EfficientNet_B0_Weights
+        weights = EfficientNet_B0_Weights.DEFAULT
     elif arch == "efficientnet_b1":
         weights = EfficientNet_B1_Weights.DEFAULT
     elif arch == "efficientnet_b2":
@@ -293,56 +294,67 @@ class FilmEfficientNet(nn.Module):
                 arch, width_mult=1.0, depth_mult=1.0
             )
             dropout = 0.2
+            self.output_hw = 7
         elif arch == "efficientnet_b1":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=1.0, depth_mult=1.1
             )
             dropout = 0.2
+            self.output_hw = 8
         elif arch == "efficientnet_b2":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=1.1, depth_mult=1.2
             )
             dropout = 0.3
+            self.output_hw = 9
         elif arch == "efficientnet_b3":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=1.2, depth_mult=1.4
             )
             dropout = 0.3
+            self.output_hw = 10
         elif arch == "efficientnet_b4":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=1.4, depth_mult=1.8
             )
             dropout = 0.4
+            self.output_hw = 12
         elif arch == "efficientnet_b5":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=1.6, depth_mult=2.2
             )
             dropout = 0.4
             norm_layer = partial(nn.BatchNorm2d, eps=0.001, momentum=0.01)
+            self.output_hw = 15
         elif arch == "efficientnet_b6":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=1.8, depth_mult=2.6
             )
             dropout = 0.5
             norm_layer = partial(nn.BatchNorm2d, eps=0.001, momentum=0.01)
+            self.output_hw = 17
         elif arch == "efficientnet_b7":
             inverted_residual_setting, last_channel = _efficientnet_conf(
                 arch, width_mult=2.0, depth_mult=3.1
             )
             dropout = 0.5
             norm_layer = partial(nn.BatchNorm2d, eps=0.001, momentum=0.01)
+            self.output_hw = 20
         elif arch == "efficientnet_v2_s":
             inverted_residual_setting, last_channel = _efficientnet_conf(arch)
             dropout = 0.2
             norm_layer = partial(nn.BatchNorm2d, eps=1e-03)
+            self.output_hw = 12
         elif arch == "efficientnet_v2_m":
             inverted_residual_setting, last_channel = _efficientnet_conf(arch)
             dropout = 0.3
             norm_layer = partial(nn.BatchNorm2d, eps=1e-03)
+            self.output_hw = 15
         elif arch == "efficientnet_v2_l":
             inverted_residual_setting, last_channel = _efficientnet_conf(arch)
             dropout = 0.4
             norm_layer = partial(nn.BatchNorm2d, eps=1e-03)
+            self.output_hw = 15
 
         assert (
             weights is None or not pretrained
@@ -381,7 +393,7 @@ class FilmEfficientNet(nn.Module):
         self.preprocess = weights.transforms(antialias=True) if weights else lambda x: x
 
         self.conv1x1 = nn.Conv2d(
-            in_channels=1536,
+            in_channels=self.model.features[-1].out_channels,
             out_channels=embedding_dim,
             kernel_size=(1, 1),
             stride=(1, 1),
