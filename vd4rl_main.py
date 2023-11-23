@@ -114,9 +114,10 @@ class VD4RLEnv(gym.Env):
             act = act[:, :-1]
 
             # frame-stack by rolling self.num_frames times over t
+            num_traj = 500 - self.num_frames + 1
             indices = np.stack(
                 [
-                    np.arange(s, s + 500 - self.num_frames + 1)
+                    np.arange(s, s + num_traj)
                     for s in range(self.num_frames)
                 ],
                 axis=-1,
@@ -127,8 +128,8 @@ class VD4RLEnv(gym.Env):
             act = np.take(act, indices, axis=1)
 
             # (b, t - f + 1, f, ...) -> (b * (t - f + 1), f, ...)
-            obs = np.reshape(obs, (num_episodes * 495, *obs.shape[2:]))
-            act = np.reshape(act, (num_episodes * 495, *act.shape[2:]))
+            obs = np.reshape(obs, (num_episodes * num_traj, *obs.shape[2:]))
+            act = np.reshape(act, (num_episodes * num_traj, *act.shape[2:]))
 
             # Concatenate with leftover trajectories from last episode
             if prev_obs is not None:
