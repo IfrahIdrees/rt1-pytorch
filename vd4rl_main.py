@@ -116,10 +116,7 @@ class VD4RLEnv(gym.Env):
             # frame-stack by rolling self.num_frames times over t
             num_traj = 500 - self.num_frames + 1
             indices = np.stack(
-                [
-                    np.arange(s, s + num_traj)
-                    for s in range(self.num_frames)
-                ],
+                [np.arange(s, s + num_traj) for s in range(self.num_frames)],
                 axis=-1,
             )
 
