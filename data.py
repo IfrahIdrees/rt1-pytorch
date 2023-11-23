@@ -466,6 +466,7 @@ def create_dataset(
     split="train",
     trajectory_length=6,
     batch_size=32,
+    num_epochs=1,
 ) -> Iterable[Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]]:
     trajectory_datasets = []
     for dataset in datasets:
@@ -492,7 +493,7 @@ def create_dataset(
         get_observation_and_action_from_step, num_parallel_calls=tf.data.AUTOTUNE
     )
 
-    # Shuffle, batch, prefetch
+    # Shuffle, batch, prefetch, repeat
     trajectory_dataset = trajectory_dataset.shuffle(batch_size * 16)
     trajectory_dataset = trajectory_dataset.batch(
         batch_size,
@@ -500,6 +501,7 @@ def create_dataset(
         num_parallel_calls=tf.data.AUTOTUNE,
         deterministic=False,
     )
+    trajectory_dataset = trajectory_dataset.repeat(num_epochs)
     trajectory_dataset = trajectory_dataset.prefetch(tf.data.AUTOTUNE)
 
     return iter(trajectory_dataset.as_numpy_iterator())

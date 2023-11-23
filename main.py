@@ -123,12 +123,14 @@ def main():
         split=args.train_split,
         trajectory_length=args.trajectory_length,
         batch_size=args.train_batch_size,
+        num_epochs=args.epochs,
     )
     eval_dataset = create_dataset(
         datasets=args.datasets,
         split=args.eval_split,
         trajectory_length=args.trajectory_length,
         batch_size=args.eval_batch_size,
+        num_epochs=args.epochs,
     )
 
     observation_space = gym.spaces.Dict(
@@ -186,56 +188,49 @@ def main():
             return observation["embedding"]
 
     print("Training...")
-    for epoch in range(1, args.epochs + 1):
+    num_batches = 0
+    for batch in train_dataset:
+        policy.model.train()
+        num_batches += 1
+        observations = {
+            "image": batch["observation"]["image"],
+            "context": get_text_embedding(batch["observation"]),
+        }
+        actions = batch["action"]
+        loss = policy.loss(observations, actions)
         if args.wandb:
-            wandb.log({"epoch": epoch}, step=epoch)
+            wandb.log({"loss": loss.item()}, step=num_batches * args.train_batch_size)
         else:
-            print(f"Epoch {epoch}")
-        num_batches = 0
-        for batch in train_dataset:
-            policy.model.train()
-            num_batches += 1
+            print(f"Train loss Batch {num_batches}: {loss.item()}")
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if args.eval_freq and num_batches % args.eval_freq == 0:
+            print("Evaluating...")
+            policy.model.eval()
+            batch = next(eval_dataset)
             observations = {
                 "image": batch["observation"]["image"],
                 "context": get_text_embedding(batch["observation"]),
             }
             actions = batch["action"]
-            loss = policy.loss(observations, actions)
+            eval_loss = policy.loss(observations, actions)
+            eval_loss = eval_loss.item()
             if args.wandb:
                 wandb.log(
-                    {"loss": loss.item()},
-                    step=num_batches * args.train_batch_size * epoch,
+                    {"eval_loss": eval_loss},
+                    step=num_batches * args.train_batch_size,
                 )
             else:
-                print(f"Train loss Epoch {epoch} Batch {num_batches}: {loss.item()}")
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            if args.eval_freq and num_batches % args.eval_freq == 0:
-                print("Evaluating...")
-                policy.model.eval()
-                batch = next(eval_dataset)
-                observations = {
-                    "image": batch["observation"]["image"],
-                    "context": get_text_embedding(batch["observation"]),
-                }
-                actions = batch["action"]
-                eval_loss = policy.loss(observations, actions)
-                eval_loss = eval_loss.item()
-                if args.wandb:
-                    wandb.log(
-                        {"eval_loss": eval_loss},
-                        step=num_batches * args.train_batch_size * epoch,
-                    )
-                else:
-                    print(f"Eval loss Epoch {epoch} Batch {num_batches}: {eval_loss}")
-            if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
-                checkpoint_path = (
-                    f"{args.checkpoint_dir}/checkpoint_{num_batches}"
-                    + f"_loss_{loss.item():.3f}.pt"
-                )
-                torch.save(policy.model.state_dict(), checkpoint_path)
-                print(f"Saved checkpoint to {checkpoint_path}")
+                print(f"Eval loss Batch {num_batches}: {eval_loss}")
+        if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
+            checkpoint_path = (
+                f"{args.checkpoint_dir}/checkpoint_"
+                + f"{num_batches * args.batch_size}"
+                + f"_loss_{loss.item():.3f}.pt"
+            )
+            torch.save(policy.model.state_dict(), checkpoint_path)
+            print(f"Saved checkpoint to {checkpoint_path}")
 
 
 if __name__ == "__main__":

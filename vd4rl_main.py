@@ -184,7 +184,7 @@ def parse_args():
     parser.add_argument(
         "--lr",
         type=float,
-        default=1e-3,
+        default=1e-4,
         help="learning rate",
     )
     parser.add_argument(
@@ -270,22 +270,21 @@ def main():
         num_frames=args.trajectory_length,
         dataset_dir=args.dataset_dir,
     )
-    train_dataset = env.get_dataset(batch_size=args.batch_size)
 
     print("Building policy...")
     policy = RT1Policy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        arch="efficientnet_b0",
-        action_bins=1024,
-        num_layers=2,
-        num_heads=4,
+        arch="efficientnet_b3",
+        action_bins=256,
+        num_layers=4,
+        num_heads=8,
         feed_forward_size=256,
         dropout_rate=0.01,
         time_sequence_length=args.trajectory_length,
         embedding_dim=embedding_dim,
         use_token_learner=True,
-        token_learner_bottleneck_dim=32,
+        token_learner_bottleneck_dim=64,
         token_learner_num_output_tokens=8,
         device=args.device,
         checkpoint_path=args.load_checkpoint,
@@ -307,11 +306,8 @@ def main():
 
     print("Training...")
     for epoch in range(1, args.epochs + 1):
-        if args.wandb:
-            wandb.log({"epoch": epoch}, step=epoch)
-        else:
-            print(f"Epoch {epoch}")
         num_batches = 0
+        train_dataset = env.get_dataset(batch_size=args.batch_size)
         for batch in train_dataset:
             policy.model.train()
             num_batches += 1
@@ -383,7 +379,8 @@ def main():
                     print(f"Epoch {epoch} Batch {num_batches} eval return: {reward}")
             if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
                 checkpoint_path = (
-                    f"{args.checkpoint_dir}/checkpoint_{num_batches}"
+                    f"{args.checkpoint_dir}/checkpoint_"
+                    + f"{num_batches * args.batch_size * epoch}"
                     + f"_loss_{loss.item():.3f}.pt"
                 )
                 torch.save(policy.model.state_dict(), checkpoint_path)
