@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 from torch.optim import Adam
+import wandb
 
 from data import create_dataset
 from rt1_pytorch.rt1_policy import RT1Policy
@@ -97,11 +98,22 @@ def parse_args():
         default=None,
         help="checkpoint to load from; defaults to None",
     )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="use wandb for logging",
+        default=False,
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
+
+    if args.wandb:
+        wandb.init(project="rt1-pytorch", config=vars(args))
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
@@ -174,7 +186,7 @@ def main():
             return observation["embedding"]
 
     print("Training...")
-    for epoch in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
         num_batches = 0
         for batch in train_dataset:
             policy.model.train()
@@ -185,7 +197,13 @@ def main():
             }
             actions = batch["action"]
             loss = policy.loss(observations, actions)
-            print(f"Training loss Epoch {epoch} Batch {num_batches}: {loss.item()}")
+            if args.wandb:
+                wandb.log(
+                    {"loss": loss.item()},
+                    step=num_batches * args.train_batch_size * epoch,
+                )
+            else:
+                print(f"Train loss Epoch {epoch} Batch {num_batches}: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -200,7 +218,13 @@ def main():
                 actions = batch["action"]
                 eval_loss = policy.loss(observations, actions)
                 eval_loss = eval_loss.item()
-                print(f"eval loss: {eval_loss}")
+                if args.wandb:
+                    wandb.log(
+                        {"eval_loss": eval_loss},
+                        step=num_batches * args.train_batch_size * epoch,
+                    )
+                else:
+                    print(f"Eval loss Epoch {epoch} Batch {num_batches}: {eval_loss}")
             if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
                 checkpoint_path = (
                     f"{args.checkpoint_dir}/checkpoint_{num_batches}"

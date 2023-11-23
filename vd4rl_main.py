@@ -8,6 +8,7 @@ import numpy as np
 import requests
 import torch
 import tqdm
+import wandb
 from dmc2gymnasium import DMCGym
 from sentence_transformers import SentenceTransformer
 from torch.optim import Adam
@@ -240,11 +241,20 @@ def parse_args():
         default="datasets",
         help="local directory for datasets",
     )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="use wandb for logging",
+        default=False,
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    if args.wandb:
+        wandb.init(project="rt1-vd4rl", config=vars(args))
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
@@ -295,7 +305,7 @@ def main():
         return observation["embedding"]
 
     print("Training...")
-    for epoch in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
         num_batches = 0
         for batch in train_dataset:
             policy.model.train()
@@ -306,7 +316,13 @@ def main():
             }
             actions = batch["action"]
             loss = policy.loss(observations, actions)
-            print(f"Training loss Epoch {epoch} Batch {num_batches}: {loss.item()}")
+            if args.wandb:
+                wandb.log(
+                    {"train_loss": loss.item()},
+                    step=num_batches * args.batch_size * epoch,
+                )
+            else:
+                print(f"Epoch {epoch} Batch {num_batches} train loss: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -353,7 +369,13 @@ def main():
                     actions["action_key"].append(act["action_key"])
                     reward += rew * (info["discount"] ** ts)
                     ts += 1
-                print(f"eval reward: {reward}")
+                if args.wandb:
+                    wandb.log(
+                        {"eval_return": reward},
+                        step=num_batches * args.batch_size * epoch,
+                    )
+                else:
+                    print(f"Epoch {epoch} Batch {num_batches} eval return: {reward}")
             if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
                 checkpoint_path = (
                     f"{args.checkpoint_dir}/checkpoint_{num_batches}"

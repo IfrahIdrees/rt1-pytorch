@@ -14,7 +14,9 @@ pip install -e .
 bash fix_torch.sh
 
 # See main.py for additional arguments
-python main.py --train-split "train[:1000]" --eval-split "train[:1000]" --train-batch-size 8 --eval-batch-size 8 --eval-freq 100 --checkpoint-freq 1000
+python main.py --train-split "train[:1000]" --eval-split "train[:1000]" \
+--train-batch-size 8 --eval-batch-size 8 --eval-freq 100 --checkpoint-freq 1000 \
+--wandb
 ```
 
 ## Changelog
@@ -39,18 +41,19 @@ Note: Per trajectory, the memory consumed is:
 
 ## TODO
 - [x] Add smaller `vd4rl` benchmarks
-- [] Add off-policy evaluation to evaluate on test dataset
-- [] Implement DDP; make sure we check loss reduction stays the same
-- [] Try onehot encoding discrete actions instead of passing the raw action as a token
-- [] Optimize so we don't run tokenizer 6x per image; see `efficient-encode` branch
-- [] Try predicting last token only; see `lasttoken` branch
-- [] Hyperparameter tuning
-- [] Tests! All the tests! Unit tests, learning tests, testing all the way!
-- [] Oh what fun, it is to write, a bunch of tests all day!
-- [] Try [CoW-MOO](https://robot-moo.github.io/)
-- [] Try ViT instead as in the `lucidrains` implementation
-- [] Train and evaluate on real KUKA robot
-- [] Setup lint and CI pipeline; currently running `black` and `isort`
+- [x] Add WanDB logging
+- [ ] Add off-policy evaluation to evaluate on test dataset
+- [ ] Implement DDP; make sure we check loss reduction stays the same
+- [ ] Try onehot encoding discrete actions instead of passing the raw action as a token
+- [ ] Optimize so we don't run tokenizer 6x per image; see `efficient-encode` branch
+- [ ] Try predicting last token only; see `lasttoken` branch
+- [ ] Hyperparameter tuning
+- [ ] Tests! All the tests! Unit tests, learning tests, testing all the way!
+- [ ] Oh what fun, it is to write, a bunch of tests all day!
+- [ ] Try [CoW-MOO](https://robot-moo.github.io/)
+- [ ] Try ViT instead as in the `lucidrains` implementation
+- [ ] Train and evaluate on real KUKA robot
+- [ ] Setup lint and CI pipeline; currently running `black` and `isort`
 
 ## Acknowledgements
 

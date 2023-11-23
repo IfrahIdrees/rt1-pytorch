@@ -31,6 +31,8 @@ setup(
         "einops",
         "dmc2gymnasium@git+https://github.com/imgeorgiev/dmc2gymnasium.git",
         "h5py",
+        "wandb",
+        "tqdm",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
