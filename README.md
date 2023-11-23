@@ -72,3 +72,14 @@ Initial implementation borrowed from [lucidrains/robotic-transformer-pytorch](ht
     year      = {2022}
 }
 ```
+
+```bibtex
+@article{Lu2022ChallengesAO,
+  title={Challenges and Opportunities in Offline Reinforcement Learning from Visual Observations},
+  author={Cong Lu and Philip J. Ball and Tim G. J. Rudner and Jack Parker-Holder and Michael A. Osborne and Yee Whye Teh},
+  journal={ArXiv},
+  year={2022},
+  volume={abs/2206.04779},
+  url={https://api.semanticscholar.org/CorpusID:249605861}
+}
+```
