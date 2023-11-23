@@ -184,7 +184,7 @@ def parse_args():
     parser.add_argument(
         "--lr",
         type=float,
-        default=1e-4,
+        default=1e-3,
         help="learning rate",
     )
     parser.add_argument(
@@ -280,7 +280,7 @@ def main():
         action_bins=1024,
         num_layers=2,
         num_heads=4,
-        feed_forward_size=128,
+        feed_forward_size=256,
         dropout_rate=0.01,
         time_sequence_length=args.trajectory_length,
         embedding_dim=embedding_dim,
