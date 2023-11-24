@@ -303,8 +303,8 @@ def main():
         return observation["embedding"]
 
     print("Training...")
+    num_batches = 0
     for epoch in range(1, args.epochs + 1):
-        num_batches = 0
         train_dataset = env.get_dataset(batch_size=args.batch_size)
         for batch in train_dataset:
             policy.model.train()
@@ -318,10 +318,10 @@ def main():
             if args.wandb:
                 wandb.log(
                     {"train_loss": loss.item()},
-                    step=num_batches * args.batch_size * epoch,
+                    step=num_batches * args.batch_size,
                 )
             else:
-                print(f"Epoch {epoch} Batch {num_batches} train loss: {loss.item()}")
+                print(f"Batch {num_batches} train loss: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -371,10 +371,10 @@ def main():
                 if args.wandb:
                     wandb.log(
                         {"eval_return": reward},
-                        step=num_batches * args.batch_size * epoch,
+                        step=num_batches * args.batch_size,
                     )
                 else:
-                    print(f"Epoch {epoch} Batch {num_batches} eval return: {reward}")
+                    print(f"Batch {num_batches} eval return: {reward}")
             if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
                 checkpoint_path = (
                     f"{args.checkpoint_dir}/checkpoint_"
