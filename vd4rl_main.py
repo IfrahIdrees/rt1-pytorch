@@ -194,7 +194,7 @@ def parse_args():
     parser.add_argument(
         "--trajectory-length",
         type=int,
-        default=6,
+        default=4,
         help="number of frames per trajectory",
     )
     parser.add_argument(
@@ -273,16 +273,16 @@ def main():
     policy = RT1Policy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        arch="efficientnet_b3",
-        action_bins=256,
+        arch="efficientnet_b0",
+        action_bins=512,
         num_layers=4,
-        num_heads=8,
-        feed_forward_size=256,
+        num_heads=4,
+        feed_forward_size=512,
         dropout_rate=0.01,
         time_sequence_length=args.trajectory_length,
         embedding_dim=embedding_dim,
         use_token_learner=True,
-        token_learner_bottleneck_dim=64,
+        token_learner_bottleneck_dim=32,
         token_learner_num_output_tokens=8,
         device=args.device,
         checkpoint_path=args.load_checkpoint,
