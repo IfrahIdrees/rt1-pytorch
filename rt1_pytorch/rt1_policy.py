@@ -36,6 +36,7 @@ class RT1Policy:
         Args:
             observation_space (gym.spaces.Dict): The observation space of the environment.
             action_space (gym.spaces.Dict): The action space of the environment.
+            arch (str, optional): The architecture of the model. Defaults to "efficientnet_b3".
             action_bins (int, optional): The number of bins for discretizing continuous action spaces. Defaults to 256.
             num_layers (int, optional): The number of transformer layers in the model. Defaults to 8.
             num_heads (int, optional): The number of attention heads in each transformer layer. Defaults to 8.
@@ -62,6 +63,7 @@ class RT1Policy:
         )
 
         self.model = RT1Model(
+            arch=arch,
             tokens_per_action=self.action_tokenizer.tokens_per_action,
             action_bins=action_bins,
             num_layers=num_layers,
