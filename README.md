@@ -10,9 +10,6 @@ Implementation of <a href="https://ai.googleblog.com/2022/12/rt-1-robotics-trans
 git clone https://github.com/Rohan138/rt1-pytorch.git
 pip install -e .
 
-# Make sure to run this! See https://github.com/pytorch/pytorch/pull/114083/files
-bash fix_torch.sh
-
 # See main.py for additional arguments
 python main.py --train-split "train[:1000]" --eval-split "train[:1000]" \
 --train-batch-size 8 --eval-batch-size 8 --eval-freq 100 --checkpoint-freq 1000 \
@@ -25,8 +22,7 @@ python main.py --train-split "train[:1000]" --eval-split "train[:1000]" \
 download and experiment with datasets
 - 11/14/2023: Separate `RT1Model` and `RT1Policy`; fix einops
 - 11/16/2023: Add `data.py`; add back `USE` embeddings
-- 11/19/2023: Lots of cleanup; move trajectory logic to `data.py`; found 
-PyTorch [bug](https://github.com/pytorch/pytorch/pull/114083/files), added tests
+- 11/19/2023: Lots of cleanup; move trajectory logic to `data.py`; added tests
 for model, policy, and loss; fix action tokenizer
 - 11/20/2023: Updates to `data.py`; add `device=cuda` support; add `fix_torch.sh`; 
 finalize `main.py`; add simple evaluation and checkpointing logic
