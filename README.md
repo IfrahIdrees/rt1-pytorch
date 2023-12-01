@@ -24,7 +24,7 @@ download and experiment with datasets
 - 11/16/2023: Add `data.py`; add back `USE` embeddings
 - 11/19/2023: Lots of cleanup; move trajectory logic to `data.py`; added tests
 for model, policy, and loss; fix action tokenizer
-- 11/20/2023: Updates to `data.py`; add `device=cuda` support; add `fix_torch.sh`; 
+- 11/20/2023: Updates to `data.py`; add `device=cuda` support 
 finalize `main.py`; add simple evaluation and checkpointing logic
 start `vd4rl_main.py`; cleanup FiLM-EfficientNet files
 - Finished `vd4rl_main.py`; some additional cleanup; GPU benchmarking
