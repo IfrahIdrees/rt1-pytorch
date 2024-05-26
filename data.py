@@ -2,7 +2,7 @@
 import abc
 import dataclasses
 from typing import Any, Dict, Iterable, Optional, Union
-
+import pdb
 import numpy as np
 import reverb
 import tensorflow as tf
@@ -469,8 +469,15 @@ def create_dataset(
     num_epochs=1,
 ) -> Iterable[Dict[str, Union[np.ndarray, Dict[str, np.ndarray]]]]:
     trajectory_datasets = []
+    #tf.io.gfile.exists(builder_dir=dataset2path(dataset))
     for dataset in datasets:
-        b = tfds.builder_from_directory(builder_dir=dataset2path(dataset))
+        #tf.io.gfile.exists(builder_dir=dataset2path(dataset))
+        
+
+        b = tfds.builder_from_directory(builder_dir='/users/sjulian2/data/sjulian2/bridge/0.1.0')
+        #'~/data/sjulian2/bridge/0.1.0/'
+        #b = tfds.builder_from_directory(builder_dir='/users/sjulian2/data/sjulian2/jaco_play/0.1.0')
+	#dataset2path(dataset))
         ds = b.as_dataset(split=split)
 
         # The RLDSSpec for the RT1 dataset.
@@ -484,7 +491,7 @@ def create_dataset(
         ).build(validate_expected_tensor_spec=False)
 
         trajectory_dataset = trajectory_transform.transform_episodic_rlds_dataset(ds)
-
+        #pdb.set_trace()
         trajectory_datasets.append(trajectory_dataset)
 
     trajectory_dataset = tf.data.Dataset.sample_from_datasets(trajectory_datasets)
@@ -508,6 +515,7 @@ def create_dataset(
 
 
 if __name__ == "__main__":
+    #pdb.set_trace()
     ds = create_dataset(datasets=["fractal20220817_data"], split="train[:10]")
     it = next(ds)
 

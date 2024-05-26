@@ -1,7 +1,7 @@
 import argparse
 import os
 from typing import Dict
-
+import pdb
 import gymnasium as gym
 import numpy as np
 import torch
@@ -118,8 +118,10 @@ def main():
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
     print("Loading dataset...")
+    #pdb.set_trace()
+    datasets = ['bridge'] #["jaco_play"]
     train_dataset = create_dataset(
-        datasets=args.datasets,
+        datasets=datasets,
         split=args.train_split,
         trajectory_length=args.trajectory_length,
         batch_size=args.train_batch_size,
@@ -141,10 +143,13 @@ def main():
         world_vector=gym.spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32),
         base_displacement_vertical_rotation=gym.spaces.Box(
             low=-np.pi / 2.0, high=np.pi / 2.0, shape=(1,), dtype=np.float32
-        ),
-        gripper_closedness_action=gym.spaces.Box(
+        ), 
+        open_gripper=gym.spaces.Box(
             low=-1.0, high=1.0, shape=(1,), dtype=np.float32
         ),
+        #gripper_closedness_action=gym.spaces.Box(
+        #    low=-1.0, high=1.0, shape=(1,), dtype=np.float32
+        #),
         terminate_episode=gym.spaces.Discrete(3),
         base_displacement_vector=gym.spaces.Box(
             low=-1.0,
@@ -164,6 +169,7 @@ def main():
         device=args.device,
         checkpoint_path=args.load_checkpoint,
     )
+    #pdb.set_trace()
     policy.model.train()
     optimizer = Adam(policy.model.parameters(), lr=args.lr)
     text_embedding_model = (
@@ -189,8 +195,11 @@ def main():
 
     print("Training...")
     num_batches = 0
+    #pdb.set_trace()
     for batch in train_dataset:
+        #print('before training')
         policy.model.train()
+        #print('after training')
         num_batches += 1
         observations = {
             "image": batch["observation"]["image"],
@@ -226,12 +235,12 @@ def main():
         if args.checkpoint_freq and num_batches % args.checkpoint_freq == 0:
             checkpoint_path = (
                 f"{args.checkpoint_dir}/checkpoint_"
-                + f"{num_batches * args.batch_size}"
+                + f"{num_batches * args.eval_batch_size}"
                 + f"_loss_{loss.item():.3f}.pt"
             )
             torch.save(policy.model.state_dict(), checkpoint_path)
             print(f"Saved checkpoint to {checkpoint_path}")
-
+    print("finished training")
 
 if __name__ == "__main__":
     main()

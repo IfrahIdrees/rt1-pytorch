@@ -128,6 +128,7 @@ class RT1Model(nn.Module):
             torch.Tensor: The output logits.
               Shape is (b, f, tokens_per_action, action_bins).
         """
+        #print("starting forward")
         b, f, *_ = videos.shape
         assert (
             f == self.time_sequence_length
@@ -151,6 +152,7 @@ class RT1Model(nn.Module):
 
         # tokenize images and texts
         tokens = self.image_tokenizer(videos, texts)
+        #print("after tokenizing")
 
         # unpack time dimension from batch dimension
         tokens = rearrange(tokens, "(b f) c n -> b f c n", b=b, f=f)
@@ -159,6 +161,7 @@ class RT1Model(nn.Module):
         tokens = rearrange(tokens, "b f c n -> b (f n) c")
         action_logits = rearrange(action_logits, "b f a d -> b (f a) d")
 
+        #print("after rearranging tokens")
         # sinusoidal positional embedding
         pos_emb = posemb_sincos_1d(tokens.shape[1], tokens.shape[2], device=self.device)
         tokens = tokens + pos_emb
@@ -170,6 +173,8 @@ class RT1Model(nn.Module):
         token_mask = ~token_mask
         token_mask = token_mask.to(self.device)
 
+        #print("after causal mask tokens")
+
         # encode action_logits to have the same embedding dimension as tokens
         action_tokens = self.action_encoder(action_logits)
 
@@ -178,6 +183,7 @@ class RT1Model(nn.Module):
         )
         action_tokens = action_tokens + pos_emb
 
+        #print("after positional embedding")
         # action mask: do not let action_logits attend to previous action_logits,
         # a_t is independent of a_{t-1} given pi and s_t
         action_mask = torch.ones(

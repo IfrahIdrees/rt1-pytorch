@@ -32,7 +32,7 @@ from typing import Dict, Optional
 import gymnasium as gym
 import numpy as np
 from gymnasium.spaces import Box, Discrete
-
+import pdb
 
 class RT1ActionTokenizer:
     """Tokenizes based on vocab size."""
@@ -51,6 +51,12 @@ class RT1ActionTokenizer:
             tokenized actions to detokenize and assemble back to action tensor
         """
         self._action_bins = action_bins
+        #pdb.set_trace()
+        # filter the action keys
+        bridge_keys =  ['terminate_episode','world_vector', 'open_gripper', "rotation_delta"]
+        jaco_keys =  ['terminate_episode','world_vector', 'gripper_closedness_action']
+        action_order  = bridge_keys #jaco_keys
+        action_space =  {key: action_space[key] for key in bridge_keys if key in set(action_space.keys())}
         self._action_space = action_space
         if action_order is None:
             self._action_order = list(action_space.keys())
@@ -110,8 +116,13 @@ class RT1ActionTokenizer:
 
     def tokenize(self, action: Dict) -> np.ndarray:
         """Tokenizes an action."""
+        #print("current_actions")
+        #print(action.keys())
         action_tokens = []
         for k in self._action_order:
+            #print("k equals " + str(k))
+            #print(action.keys())
+            #print(action)
             a = action[k]  # a is [batch, (time), action_size]
             space = self._action_space[k]
             if isinstance(space, gym.spaces.Discrete):
@@ -130,8 +141,13 @@ class RT1ActionTokenizer:
                 token = (a - low) / (high - low)
                 # Bucket and discretize the action to action_bins, [batch, actions_size]
                 token = (token * (self._action_bins - 1)).astype(np.int32)
+            #TODO: bridge
+            if k == 'open_gripper':
+                token = token[:,None]
             action_tokens.append(token)
+            #print(k, token.shape)
         # Append all actions, [batch, (time), all_actions_size]
+        #print(action_tokens)
         action_tokens = np.concatenate(action_tokens, axis=-1)
         return action_tokens
 

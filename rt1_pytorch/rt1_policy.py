@@ -6,6 +6,7 @@ import torch
 import tree
 from einops import rearrange
 from torch.nn import functional as F
+import pdb
 
 from rt1_pytorch.rt1_model import RT1Model
 from rt1_pytorch.tokenizers.action_tokenizer import RT1ActionTokenizer
@@ -123,6 +124,7 @@ class RT1Policy:
             texts = np.stack(texts, axis=0)
         texts = torch.tensor(texts, device=self.device, dtype=torch.float32)
 
+        #pdb.set_trace()
         if actions is not None:
             actions = {
                 k: np.stack(v, axis=0) if not (isinstance(v, np.ndarray)) else v
